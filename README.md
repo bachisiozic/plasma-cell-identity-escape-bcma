@@ -35,6 +35,9 @@ Throughout, **DR = durable response** (progression-free survival > 180 days) and
 ├── gene_sets/                          # gene sets used for GSEA / enrichment
 │   ├── README.md
 │   └── CIN70.gmt
+│   └── h.all.v6.2.symbols.gmt_MOD_CART_paper.txt
+│   └── HAY_BONE_MARROW_PLASMA_CELL.v2025.1.Hs.gmt
+│   └── Mus_musculus_hallmarks_cin70_plasmacell.RData
 ├── data/                               # input tables (see data/README.md)
 │   └── README.md
 └── results/                            # derived "source data" tables that reproduce figures
