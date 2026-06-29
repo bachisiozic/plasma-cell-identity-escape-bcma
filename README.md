@@ -3,7 +3,7 @@
 This repository contains the analysis code accompanying the manuscript:
 
 > **Plasma cell identity escape drives resistance to anti-BCMA T-cell–redirecting therapy in multiple myeloma.**
-> *Ziccheddu B., Maura F., et al.* `<journal>`, `<year>`. DOI: `<doi>`.
+> *Maura F., et al.
 
 The study integrates two complementary data modalities to understand why some multiple
 myeloma patients lose durable response to BCMA-targeted T-cell–redirecting therapy
