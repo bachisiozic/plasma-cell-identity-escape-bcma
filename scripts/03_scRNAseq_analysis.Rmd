@@ -1,0 +1,1164 @@
+---
+title: "Single-cell RNA-seq Analysis of the Tumor and Immune Microenvironment in Multiple Myeloma CAR-T Patients"
+subtitle: "Determinants of durable response, including baseline BCMA (TNFRSF17) expression"
+author: "Bachisio Ziccheddu & Francesco Maura"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    code_folding: show
+    theme: flatly
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+# Global chunk options.
+# eval = FALSE  -> the code is shown as a record of the analysis but is NOT
+#                  re-run when the document is knitted. This lets the report
+#                  build on any machine, without needing the raw data files
+#                  or the original local file paths.
+# Set eval = TRUE only if you want to actually execute everything end-to-end.
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  eval    = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Overview
+
+This report documents the single-cell RNA-seq (scRNA-seq) analysis behind our study of
+multiple myeloma patients treated with BCMA-targeted CAR-T therapy. Throughout, we ask
+the same clinical question: **what distinguishes patients who achieve a durable response
+(DR) from those who do not (NDR)?** — where a durable response is defined as
+progression-free survival beyond 180 days.
+
+To make the findings robust, every analysis combines **two independent patient cohorts**:
+
+- **Moffitt** — our in-house dataset (`dataset = "moffitt"`)
+- **Dhodapkar** — a public dataset (`dataset = "public"`)
+
+The report is organized into **two parts**, each analyzing a different compartment of the
+bone-marrow biopsy:
+
+1. **Part 1 — Tumor cells.** The malignant plasma cells. We focus on baseline expression
+   of *TNFRSF17* (the gene encoding **BCMA**, the CAR-T target), then broaden to
+   genome-wide differential expression and pathway enrichment between DR and NDR patients.
+2. **Part 2 — Immune microenvironment.** Every other, non-malignant cell type. We ask
+   whether the composition and state of the immune cells at baseline — for example
+   T-cell exhaustion — relate to response.
+
+Both parts share the same backbone: load and quality-control each cohort, merge them,
+remove the technical batch difference between datasets with **Harmony**, then compare
+DR vs NDR — first at the single-cell level, and then by collapsing each patient into a
+single "pseudobulk" profile for sample-level statistics.
+
+---
+
+
+# Part 1: Tumor cells
+
+This part analyzes the **malignant plasma cells**. After quality control and integration
+of the two cohorts, we isolate the plasma cells, correct for batch effects, and compare
+durable versus non-durable responders — starting from the CAR-T target *TNFRSF17* (BCMA)
+and expanding to genome-wide differential expression (DESeq2) and pathway enrichment
+(GSEA).
+
+---
+
+## Libraries
+
+
+```{r libraries, eval=FALSE}
+library(SeuratObject)
+library(Seurat)
+library(harmony)
+library(dplyr)
+```
+
+---
+
+## Helper function: collapsing cells into "pseudobulk" per sample
+
+Before the main analysis, we define a reusable function called `collapse_by_sample()`.
+
+**What it does:** single-cell data has thousands of cells per
+patient. For some comparisons we don't want thousands of cells — we want **one
+expression profile per patient/sample**. This function takes all the cells belonging
+to a sample and adds their gene counts together (a "pseudobulk" profile), into a per-cell average.
+
+The function uses **sparse matrix operations**, which keeps it fast and memory-friendly
+even on large objects. The `adjust` argument controls the output:
+
+- `"none"` — raw summed counts per sample.
+- `"percell_mean"` — average counts per cell (sum divided by the number of cells).
+- `"percell_cpm"` — the per-cell average scaled to counts-per-million (handy for
+  visualization, not recommended for differential expression).
+
+```{r collapse-function, eval=FALSE}
+# collapse_by_sample(): build pseudobulk matrices from a Seurat object
+# - Uses sparse ops (fast, memory-safe)
+# - adjust = "none" (sum counts), "percell_mean" (sum / #cells), or "percell_cpm"
+#   * "percell_mean"  = average counts per cell in each sample
+#   * "percell_cpm"   = CPM after per-cell averaging (useful for viz; not for DE)
+#
+collapse_by_sample <- function(
+    seu,
+    group.by = "sample_id",   # e.g., "orig.ident" or your sample column
+    assay    = "RNA",
+    slot     = "counts",
+    adjust   = c("none","percell_mean","percell_cpm"),
+    min_cells = 1,            # drop groups with < min_cells
+    verbose  = TRUE
+) {
+  adjust <- match.arg(adjust)
+  stopifnot(group.by %in% colnames(seu@meta.data))
+
+  # pull sparse counts
+  X <- Seurat::GetAssayData(seu, assay = assay, slot = slot)
+  if (!inherits(X, "dgCMatrix")) {
+    stop("Counts are not sparse (dgCMatrix). Convert or ensure slot='counts' is sparse.")
+  }
+
+  # build groups
+  gvec <- seu@meta.data[[group.by]]
+  gvec <- as.character(gvec)
+  keep <- !is.na(gvec)
+  if (!all(keep)) {
+    if (verbose) message("Dropping ", sum(!keep), " cells with NA in ", group.by)
+    X   <- X[, keep, drop = FALSE]
+    gvec <- gvec[keep]
+  }
+
+  # drop tiny groups
+  tab <- table(gvec)
+  good_groups <- names(tab)[tab >= min_cells]
+  if (length(good_groups) == 0) stop("No groups have >= min_cells.")
+  if (length(good_groups) < length(tab) && verbose) {
+    message("Dropping ", sum(tab < min_cells), " groups with < ", min_cells, " cells.")
+  }
+  idx_list <- split(seq_along(gvec), f = gvec)
+  idx_list <- idx_list[good_groups]  # keep order stable
+
+  # sparse column-sums per group (genes x groups)
+  pb_sum <- do.call(cbind, lapply(idx_list, function(ix)
+    Matrix::rowSums(X[, ix, drop = FALSE])
+  ))
+  colnames(pb_sum) <- good_groups
+
+  # sizes
+  n_cells <- vapply(idx_list, length, integer(1))
+  lib_sizes_sum <- Matrix::colSums(pb_sum)          # total counts per pseudobulk (sum)
+  names(n_cells) <- colnames(pb_sum)
+
+  # adjust if requested
+  if (adjust == "none") {
+    pb_adj <- NULL
+  } else if (adjust == "percell_mean") {
+    pb_adj <- Matrix::t(Matrix::t(pb_sum) / n_cells)   # divide each column by its #cells
+  } else if (adjust == "percell_cpm") {
+    # first average per cell, then CPM using each sample's average-per-cell library size
+    pb_mean <- Matrix::t(Matrix::t(pb_sum) / n_cells)
+    lib_mean <- Matrix::colSums(pb_mean)
+    pb_adj <- Matrix::t(Matrix::t(pb_mean) / pmax(lib_mean, 1)) * 1e6
+  }
+
+  out <- list(
+    pseudobulk_sum   = pb_sum,           # genes x samples (raw sums)
+    adjusted         = pb_adj,           # NULL unless adjust != "none"
+    n_cells          = n_cells,          # cells contributing to each sample
+    lib_sizes_sum    = lib_sizes_sum,    # library sizes of pseudobulk sums
+    groups           = colnames(pb_sum),
+    assay            = assay, slot = slot, group.by = group.by, adjust = adjust
+  )
+  return(out)
+}
+```
+
+---
+
+## Cohort 1 — Moffitt: loading and quality control
+
+Here we load the Moffitt tumour object and inspect its size. We then run the standard
+single-cell **quality control (QC)** checks and visualize them:
+
+- `nFeature_RNA` — how many genes are detected per cell.
+- `nCount_RNA` — total transcripts (depth) per cell.
+- `percent.mt` — fraction of mitochondrial reads (a marker of stressed/dying cells).
+
+Violin plots and scatter plots help us see where the bulk of "good" cells sit.
+
+```{r moffitt-load-qc, eval=FALSE}
+tumor=readRDS("/Users/ziccheb/Library/CloudStorage/Box-Box/CAR-T_Paper_Maura_Freeman/Pt_Malignant_plasma_pt1_excluded_Pre_Tx.RDS")
+dim(tumor@meta.data) # 41515    58
+dim(Assays(tumor,slot = "RNA")) # [1] 31478 41515
+Idents(tumor) <- "tumor"  # set contrast as identity
+VlnPlot(tumor, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+plot1 <- FeatureScatter(tumor, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(tumor, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 + plot2
+```
+
+We then **filter out poor-quality cells and likely doublets**. We keep cells with a
+reasonable number of genes (not too few = empty/low-quality droplets, not too many =
+likely doublets), cap the extreme sequencing depth, and remove cells with high
+mitochondrial content.
+
+```{r moffitt-filter, eval=FALSE}
+tumor <- subset(
+  tumor,
+  subset = nFeature_RNA >= 500 &
+    nFeature_RNA <= 7500 & # trim extreme high-complexity (often doublets)
+    nCount_RNA   <= 75000 & # # trim extreme depth (doublets/aggregates)
+    percent.mt   <= 15
+)
+```
+
+We also load a baseline immune-microenvironment object.
+
+```{r moffitt-immune, eval=FALSE}
+immune=readRDS("/Users/ziccheb/Library/CloudStorage/Box-Box/CAR-T_Paper_Maura_Freeman/baseline_iTME.rds")
+dim(immune@meta.data) # 28313   110
+dim(Assays(immune,slot = "RNA"))
+```
+
+---
+
+## Cohort 2 — Dhodapkar / public: loading and labeling
+
+We load the public Dhodapkar dataset and look at its size and metadata. The key
+step here is **defining the clinical outcome label**: patients with progression-free
+survival (PFS) over 180 days are called **DR (durable response)**, everyone else
+**NDR (non-durable response)**. We also copy the sample identifier into a tidy `sample`
+column.
+
+```{r dhodapkar-load, eval=FALSE}
+all=readRDS("~/Library/CloudStorage/Box-Box/DURANTE/MM_CART_BCD_integrated50pc_Annotated_ClinicalData_infercnv_20231119.rds")
+dim(all@meta.data) # 202064    306
+head(all@meta.data)
+all@meta.data$D270_response=ifelse(all@meta.data$IL18_PFS.group.2 == ">180days","DR","NDR")
+all@meta.data$sample=all@meta.data$orig.ident
+unique(all@meta.data$IL18_PFS.group)
+unique(all@meta.data$IL18_PFS.group.1)
+unique(all@meta.data$IL18_PFS.group.2)
+dim(Assays(all,slot = "RNA")) # [1]  26298 202064
+```
+
+---
+
+## Merging the two cohorts
+
+Now we combine the two datasets into a single object so they can be analyzed together.
+
+
+```{r merge, eval=FALSE}
+## 0) Make sure RNA counts are present & sparse
+DefaultAssay(tumor) <- "RNA"
+DefaultAssay(all)   <- "RNA"
+stopifnot(inherits(GetAssayData(tumor, "RNA", "counts"), "dgCMatrix"))
+stopifnot(inherits(GetAssayData(all,   "RNA", "counts"), "dgCMatrix"))
+## 2) Ensure unique cell names and add a dataset tag
+# tumor <- RenameCells(tumor, add.cell.id = "tumor")
+# all   <- RenameCells(all,   add.cell.id = "all")
+tumor$dataset <- "moffitt"
+all$dataset   <- "public"
+## 3) Merge (union of genes; union of metadata columns)
+merged <- merge(
+  x = tumor, y = all,
+  add.cell.ids = c("tumor", "all"),
+  project = "merged",
+  merge.data = FALSE  # don't try to merge normalized 'data' slots
+)
+# saveRDS(merged, file = ".../combined_datasets.RDS")
+# rm(list=c("all","tumor"))
+# merged=readRDS(".../combined_datasets.RDS")
+```
+
+A quick sanity check on the merged object and its QC metrics:
+
+```{r merge-inspect, eval=FALSE}
+## 4) Inspect
+dim(merged)                 # genes x total cells (genes are the union) 4372 243579
+ncol(merged@meta.data)      # metadata columns (union; missing become NA)
+table(merged$dataset)
+Idents(merged) <- "merged"
+VlnPlot(merged, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+plot1 <- FeatureScatter(merged, feature1 = "nCount_RNA", feature2 = "percent.mt",group.by = "dataset")
+plot2 <- FeatureScatter(merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",group.by = "dataset")
+plot1 + plot2
+```
+
+---
+
+## Pre-processing: normalization, variable genes, scaling, PCA
+
+This is the standard Seurat pre-processing recipe:
+
+1. **Normalize**
+2. **Find variable features** 
+3. Quickly **inspect** the top variable genes.
+4. **Scale** the data and run **PCA** to compress the genes into a handful of summary
+   dimensions.
+
+```{r preprocess, eval=FALSE}
+merged <- NormalizeData(merged)
+merged <- FindVariableFeatures(merged, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(merged), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(merged)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+
+all.genes <- rownames(merged)
+merged <- ScaleData(merged, features = all.genes)
+merged <- RunPCA(merged, features = VariableFeatures(object = merged))
+
+print(merged[["pca"]], dims = 1:5, nfeatures = 5)
+DimPlot(merged, reduction = "pca") + NoLegend()
+```
+
+---
+
+## Clustering and UMAP (whole object)
+
+```{r cluster-umap, eval=FALSE}
+merged <- FindNeighbors(merged, dims = 1:10)
+merged <- FindClusters(merged, resolution = 0.5)
+
+merged <- RunUMAP(merged, dims = 1:10)
+DimPlot(merged, reduction = "umap")
+DimPlot(merged, reduction = "umap",group.by = "dataset")
+```
+
+---
+
+## Selecting the plasma cells
+
+Multiple myeloma is a cancer of plasma cells, so we now **subset to just the plasma
+cells**.
+
+```{r select-plasma, eval=FALSE}
+CELLTYPE_COL <- "CELL.TYPE"   # <- change to your column
+plasma_levels <- c("Plasma","Plasma cell","Malignant plasma")  # adjust
+merged@meta.data$CELL.TYPE=merged@meta.data$predicted.celltype.l3
+merged@meta.data$CELL.TYPE=ifelse(is.na(merged@meta.data$CELL.TYPE),merged@meta.data$predicted.celltype.l2,merged@meta.data$CELL.TYPE)
+seu_plasma <- subset(merged, subset = !!as.name(CELLTYPE_COL) %in% plasma_levels)
+# saveRDS(seu_plasma, file = ".../combined_datasets_plasmacells.RDS")
+```
+
+---
+
+## Re-processing the plasma cells and removing batch effect (Harmony)
+
+Now that we're working with only plasma cells, we re-run the pipeline on this smaller,
+focused object — and importantly, we **correct for the batch difference between
+cohorts**.
+
+```{r plasma-reprocess-harmony, eval=FALSE}
+# seu_plasma=readRDS(".../combined_datasets_plasmacells.RDS")
+DefaultAssay(seu_plasma) <- "RNA"
+
+# keep only what you need right now
+keep_assays <- intersect(c("RNA"), Assays(seu_plasma))
+seu_plasma  <- DietSeurat(seu_plasma, assays = keep_assays,
+                          counts = TRUE, data = TRUE, scale.data = FALSE)  # drop scale.data now
+gc()
+DefaultAssay(seu_plasma) <- "RNA"
+seu_plasma <- NormalizeData(seu_plasma, verbose = FALSE)
+seu_plasma <- FindVariableFeatures(seu_plasma, verbose = FALSE)
+vf <- VariableFeatures(seu_plasma)
+seu_plasma <- ScaleData(seu_plasma, features = vf, verbose = FALSE)
+
+# Run PCA analysis
+seu_plasma <- RunPCA(seu_plasma, features = vf)
+
+# Run Harmony to remove the batch effect
+seu_plasma <- RunHarmony(seu_plasma, group.by.vars = "dataset")
+
+# Run UMAP analysis
+seu_plasma <- RunUMAP(seu_plasma, reduction = "harmony", dims = 1:50)
+DimPlot(seu_plasma, reduction = "umap",group.by = "dataset")
+```
+
+---
+
+## Differential expression on plasma cells (single-cell level)
+
+With the plasma cells integrated, we set the cell identity to the clinical outcome and
+ask: **which genes differ between non-durable (NDR) and durable (DR) responders?** We use
+the Wilcoxon test and focus on our gene of interest, ***TNFRSF17* (BCMA)**, the CAR-T
+target, visualizing its expression with a violin plot.
+
+```{r plasma-deg, eval=FALSE}
+Idents(seu_plasma) <- "D270_response"
+de_plasma <- FindMarkers(
+  seu_plasma, ident.1 = "NDR", ident.2 = "DR",
+  test.use = "wilcox", min.pct = 0.1, logfc.threshold = 0.25
+)
+head(de_plasma)
+de_plasma[rownames(de_plasma) %in% "TNFRSF17",]
+VlnPlot(seu_plasma, features = c("TNFRSF17"))
+```
+
+---
+
+
+## Differential expression on the Harmony-integrated plasma cells
+
+We reload the Harmony-corrected object and repeat the DR-vs-NDR comparison, this time
+also exporting the full results table and visualising *TNFRSF17* across several views
+(violin, feature plot on UMAP, and UMAPs colored by outcome, cohort, and sample).
+
+```{r harmony-deg, eval=FALSE}
+seu_plasma=readRDS(".../combined_datasets_plasmacells_post_harmony.RDS")
+
+Idents(seu_plasma) <- "D270_response"
+de_plasma <- FindMarkers(
+  seu_plasma, ident.1 = "NDR", ident.2 = "DR",
+  test.use = "wilcox", min.pct = 0.1, logfc.threshold = 0.25
+)
+head(de_plasma)
+# write.table(de_plasma, ".../SC_DEanalysis_only_plasmacells.txt",
+#             col.names = T, row.names = T, quote = F, sep="\t")
+de_plasma[rownames(de_plasma) %in% "TNFRSF17",]
+VlnPlot(seu_plasma, features = c("TNFRSF17"))
+FeaturePlot(seu_plasma, features = c("TNFRSF17"))
+DimPlot(seu_plasma, reduction = "umap",group.by = "D270_response")
+DimPlot(seu_plasma, reduction = "umap",group.by = "dataset")
+DimPlot(seu_plasma, reduction = "umap",group.by = "sample")
+```
+
+---
+
+## Pseudobulk: collapsing plasma cells per sample
+
+For the patient-level analysis we now use the `collapse_by_sample()` function defined at
+the top. For **each cohort separately**, we subset to plasma cells, then collapse all
+those cells into **one average profile per sample** (`adjust = "percell_mean"`). We also
+keep a copy of the metadata alongside the collapsed matrix.
+
+```{r pseudobulk-collapse, eval=FALSE}
+### Moffitt tumour - Plasma cells
+tumor=readRDS(".../Pt_Malignant_plasma_pt1_excluded_Pre_Tx.RDS")
+CELLTYPE_COL <- "predicted.celltype.l2"
+plasma_levels <- c("Plasma","Plasma cell","Malignant plasma")
+tumor2 <- subset(tumor, subset = !!as.name(CELLTYPE_COL) %in% plasma_levels)
+tum2.md=as.data.frame(tumor2@meta.data)
+tumor2 <- collapse_by_sample(tumor2, group.by = "sample", adjust = "percell_mean")
+tumor2 <- append(tumor2, list(tum2.md))
+saveRDS(tumor2, ".../tumor_collapsed_counts_only_plasmacells.RDS")
+
+### Dhodapkar tumour - Plasma cells
+all=readRDS(".../MM_CART_BCD_integrated50pc_Annotated_ClinicalData_infercnv_20231119.rds")
+CELLTYPE_COL <- "predicted.celltype.l3"
+plasma_levels <- c("Plasma","Plasma cell","Malignant plasma")
+all.2 <- subset(all, subset = !!as.name(CELLTYPE_COL) %in% plasma_levels)
+all2.md=as.data.frame(all.2@meta.data)
+all.2 <- collapse_by_sample(all.2, group.by = "orig.ident", adjust = "percell_mean")
+all.2 <- append(all.2, list(all2.md))
+saveRDS(all.2, ".../dhodapkar_collapsed_counts_only_plasmacells.RDS")
+```
+
+---
+
+## Building a per-sample expression + metadata table
+
+Next we turn the collapsed matrices into tidy tables that combine a **panel of selected
+genes** (immune checkpoint / exhaustion markers plus the CAR-T targets *TNFRSF17*/BCMA
+and *GPRC5D*) with the relevant **clinical metadata** for each sample.
+
+### Moffitt
+
+We pull the adjusted (per-cell averaged) expression, keep only our gene panel, transpose
+it so samples are rows, attach the clinical columns (time point, MRD, response, sBCMA),
+reduce to one row per sample, and **exclude patient 11** (who died within 30 days of
+infusion). Finally we merge expression with metadata by sample.
+
+```{r moffitt-table, eval=FALSE}
+tumor2=readRDS(".../tumor_collapsed_counts_only_plasmacells.RDS")
+
+moffitt.exp.adj=tumor2$adjusted
+dim(moffitt.exp.adj)  # 31478    11
+moffitt.exp.adj.sub=moffitt.exp.adj[rownames(moffitt.exp.adj) %in% c("TNFRSF17", "ADORA2A", "BTLA", "CD160", "CD244", "CD27", "CD63",
+                                                                     "CD8A", "CD8B", "CHST12", "CSF1", "CSF2", "CST7", "CTLA4", "CTSD",
+                                                                     "CTSW", "CXCR6", "ENTPD1", "FAM3C", "FASL", "GZMB", "HAVCR2",
+                                                                     "HOPX", "ID2", "IFNG", "IL10", "LAG3", "LAYN", "MIR155HG", "NKG7",
+                                                                     "PDCD1", "PRF1", "TIGIT", "TNFRSF9", "TOX", "VSIR", "CCL3", "CCL4",
+                                                                     "HAVCR1", "LAIR1", "XCL1", "KLRD1", "KIR3DL1","GPRC5D"),]
+dim(moffitt.exp.adj.sub)  # 42 11
+moffitt.exp.adj.sub.t=t(moffitt.exp.adj.sub)
+moffitt.df=tumor2[[10]]
+moffitt.df.1=moffitt.df[,c("sample","time_point","D90_MRD","D270_response","sBCMA")]
+moffitt.df.1=unique(moffitt.df.1)  # 11 samples x 5 cols
+### Excluding pt 11 because died in 30 days after infusion
+moffitt.df.2=moffitt.df.1[moffitt.df.1$sample != "11aCD138",]
+moffitt.sub=merge(moffitt.df.2,moffitt.exp.adj.sub.t,by.x="sample",by.y="row.names",all.x=T)
+```
+
+### Dhodapkar
+
+The same idea for the public cohort: subset to the gene panel, transpose, re-derive the
+DR/NDR label, attach time point, deduplicate to one row per sample, and merge.
+
+```{r dhodapkar-table, eval=FALSE}
+all.2=readRDS(".../dhodapkar_collapsed_counts_only_plasmacells.RDS")
+
+all.exp.adj=all.2$adjusted
+dim(all.exp.adj)  # 26298    23
+all.exp.adj.sub=all.exp.adj[rownames(all.exp.adj) %in% c("TNFRSF17", "ADORA2A", "BTLA", "CD160", "CD244", "CD27", "CD63",
+                                                         "CD8A", "CD8B", "CHST12", "CSF1", "CSF2", "CST7", "CTLA4", "CTSD",
+                                                         "CTSW", "CXCR6", "ENTPD1", "FAM3C", "FASL", "GZMB", "HAVCR2",
+                                                         "HOPX", "ID2", "IFNG", "IL10", "LAG3", "LAYN", "MIR155HG", "NKG7",
+                                                         "PDCD1", "PRF1", "TIGIT", "TNFRSF9", "TOX", "VSIR", "CCL3", "CCL4",
+                                                         "HAVCR1", "LAIR1", "XCL1", "KLRD1", "KIR3DL1","GPRC5D"),]
+dim(all.exp.adj.sub)  # 42 23
+all.exp.adj.sub.t=t(all.exp.adj.sub)
+all.df=all.2[[10]]
+all.df$D270_response=ifelse(all.df$IL18_PFS.group.2 == ">180days","DR","NDR")
+all.df$sample=all.df$orig.ident
+all.df.1=all.df[,c("sample","time.point","D270_response")]
+colnames(all.df.1)[2]="time_point"
+all.df.1=unique(all.df.1)  # 23 samples
+all.sub=merge(all.df.1,all.exp.adj.sub.t,by.x="sample",by.y="row.names",all.x=T)
+```
+
+---
+
+## Combining both cohorts into one table
+
+We keep only the **baseline (pre-treatment)** samples for the response comparison.
+
+```{r combine, eval=FALSE}
+df=plyr::rbind.fill(moffitt.sub,all.sub)
+dim(df)  # 33 48
+### Selecting only the baseline samples
+df.bas=df[df$time_point %in% c("PreTx","Pre"),]
+dim(df.bas)
+```
+
+---
+
+## Testing baseline *TNFRSF17* (BCMA) by response
+
+This is the central result. We use a one-sided **Wilcoxon test** (asking whether
+*TNFRSF17* is *higher* in one response group) and draw a boxplot of baseline BCMA
+expression in DR vs NDR patients, with individual samples shown as jittered points.
+
+
+```{r tnfrsf17-test, eval=FALSE}
+df.bas=df[df$time_point %in% c("PreTx","Pre"),]
+test=wilcox.test(df.bas$TNFRSF17 ~ df.bas$D270_response,alternative = "greater")
+boxplot(df.bas$TNFRSF17 ~ df.bas$D270_response,
+        las=1,
+        outline=T,
+        main="TNFRSF17",
+        sub=paste("p.value = ",round(test$p.value,4),sep=""),
+        xlab="Outcome",
+        ylab="TNFRSF17",
+        #ylim=c(0,30),
+        col=c("dodgerblue","orange"))
+stripchart(df.bas$TNFRSF17 ~ df.bas$D270_response,
+           method = "jitter",
+           pch = 19,
+           cex=0.8,
+           col = "grey60",
+           vertical = TRUE,
+           add = TRUE)
+```
+
+---
+
+## Exporting the final combined table
+
+Finally, we write the full combined per-sample table (selected genes + metadata, both
+cohorts) to a tab-separated file for downstream use and sharing.
+
+```{r export, eval=FALSE}
+write.table(df,
+            ".../combined_matrix_plasmacells_selected_genes_27MAY26.txt",
+            col.names = T,
+            row.names = F,
+            quote = F,
+            sep="\t")
+```
+
+---
+
+## Pseudobulk differential expression (DESeq2)
+
+```{r pb-deg-tables, eval=FALSE}
+#### Differential expression analysis
+moffitt.exp=tumor2$pseudobulk_sum
+all.exp=all.2$pseudobulk_sum
+### Selecting the genes that are shared by both cohorts
+GENES=intersect(rownames(all.exp),rownames(moffitt.exp))
+
+#### Moffitt: shared genes, samples as rows
+moffitt.exp=tumor2$pseudobulk_sum
+dim(moffitt.exp)            # 31478    11
+moffitt.exp=moffitt.exp[rownames(moffitt.exp) %in% GENES,]
+moffitt.exp.t=t(moffitt.exp)
+head(moffitt.df.1)
+### Excluding pt 11 because died in 30 days after infusion
+head(moffitt.df.2)
+moffitt.deg=merge(moffitt.df.2,moffitt.exp.t,by.x="sample",by.y="row.names",all.x=T)
+dim(moffitt.deg)           # 10 25949
+
+#### Dhodapkar: shared genes, samples as rows
+all.exp=all.2$pseudobulk_sum
+dim(all.exp)               # 26298    23
+all.exp=all.exp[rownames(all.exp) %in% GENES,]
+all.exp.t=t(all.exp)
+head(all.df.1)
+all.deg=merge(all.df.1,all.exp.t,by.x="sample",by.y="row.names",all.x=T)
+dim(all.deg)               # 23 25947
+
+#### Combine both cohorts and keep baseline samples only
+df.deg=plyr::rbind.fill(moffitt.deg,all.deg)
+df.deg.bas=df.deg[df.deg$time_point %in% c("PreTx","Pre"),]
+dim(df.deg.bas)            # 16
+```
+
+```{r pb-deg-input, eval=FALSE}
+#### Creating input data
+expr=df.deg.bas[,c(1,6:ncol(df.deg.bas))]
+rownames(expr)=expr$sample
+expr=expr[,-1]
+expr=t(expr)
+
+pdata=df.deg.bas[,1:5]
+rownames(pdata)=pdata$sample
+pdata=pdata[,-1]
+```
+
+
+```{r pb-deg-deseq2, eval=FALSE}
+library(edgeR)
+library(DESeq2)
+dds <- DESeqDataSetFromMatrix(countData = expr,
+                              colData = pdata,
+                              design = ~ D270_response)
+
+keep <- rowSums(counts(dds) >= 10) >= ceiling(0.2*ncol(dds))
+dds  <- dds[keep,]
+dds  <- DESeq(dds)
+res  <- results(dds, contrast = c("D270_response","NDR","DR"))
+```
+
+---
+
+## Gene set enrichment analysis (GSEA)
+
+To move from individual genes to **biological pathways**, we rank every gene by its
+DESeq2 test statistic (so genes most up in NDR are at one end, most up in DR at the
+other), then run **fgsea** against a collection of gene sets.
+
+First we build the ranked list, handling missing values and infinities.
+
+```{r gsea-ranks, eval=FALSE}
+ranks <- res$stat # in order to put CD19 low VS CD19 high
+ok <- !is.na(ranks)
+ranks <- ranks[ok]
+ranks[ranks == Inf] <- 999
+names(ranks) <- rownames(res)[ok]
+```
+
+We define a custom **CIN70** proliferation/chromosomal-instability signature, and load
+two more gene-set collections from file: a modified Hallmark set used for this paper, and
+a bone-marrow plasma-cell identity signature.
+
+
+```{r gsea-genesets, eval=FALSE}
+CIN70 <- c("TPX2", "PRC1", "FOXM1", "CDC2", "C20orf24", "TGIF2", "MCM2", "H2AFZ",
+           "TOP2A", "PCNA", "UBE2C", "MELK", "TRIP13", "CNAP1", "MCM7", "RNASEH2A",
+           "RAD51AP1", "KIF20A", "CDC45L", "MAD2L1", "ESPL1", "CCNB2", "FEN1", "TTK",
+           "CCT5", "RFC4", "ATAD2", "ch-TOG", "NUP205", "CDC20", "CKS2", "RRM2", "ELAVL1",
+           "CCNB1", "RRM1", "AURKB", "MSH6", "EZH2", "CTPS", "DKC1", "OIP5", "CDCA8",
+           "PTTG1", "CEP55", "H2AFX", "CMAS", "BRRN1", "MCM10", "LSM4", "MTB", "ASF1B",
+           "ZWINT", "TOPK", "FLJ10036", "CDCA3", "ECT2", "CDC6", "UNG", "MTCH2", "RAD21",
+           "ACTL6A", "GPI", "MGC13096", "SFRS2", "HDGF", "NXT1", "NEK2", "DHCR7", "STK6",
+           "Aurora-A", "NDUFAB1", "KIAA0286", "KIF4A")
+
+library(fgsea)
+library(msigdbr)
+# Modified Hallmark collection (paper-specific) read from a .gmt-style table
+setlist<-read.table(".../h.all.v6.2.symbols.gmt_CART_paper.txt",sep="\t",fill=T,header=F,as.is=T)
+gs<-vector("list",length=nrow(setlist))
+names(gs)<-setlist[,1]
+setlist<-setlist[,-c(1:2)]
+for(i in 1:nrow(setlist)){
+  temp<-as.vector(as.matrix(setlist[i,]))
+  temp<-temp[temp!=""]
+  gs[[i]]<-temp
+}
+
+# Bone-marrow plasma-cell identity signature
+bm.pc=read.delim(".../HAY_BONE_MARROW_PLASMA_CELL.v2025.1.Hs.gmt",
+                 sep="\t",fill=T,header=F,as.is=T)
+gs1<-vector("list",length=nrow(bm.pc))
+names(gs1)<-bm.pc[,1]
+bm.pc<-bm.pc[,-c(1:2)]
+for(i in 1:nrow(bm.pc)){
+  temp<-as.vector(as.matrix(setlist[i,]))   # <-- reads setlist, not bm.pc (see note)
+  temp<-temp[temp!=""]
+  gs1[[i]]<-temp
+}
+```
+
+We combine all gene sets and run fgsea, then keep the pathway, normalized enrichment
+score (NES) and adjusted p-value, ordered by significance.
+
+```{r gsea-run, eval=FALSE}
+sets  <- c(gs, list(CIN70=CIN70),gs1)
+fg <- fgsea(pathways = sets, stats = ranks,nperm = 10000)
+NDR=fg[order(fg$padj), c("pathway","NES","padj")]
+
+write.table(as.data.frame(NDR),
+            ".../Malignant_sc_plasma_cells_GSEA.txt",
+            col.names = T, row.names = F, quote = F, sep="\t")
+```
+
+A classic enrichment ("running score") plot for the plasma-cell identity signature,
+comparing NDR vs DR:
+
+```{r gsea-enrichplot, eval=FALSE}
+plotEnrichment(pathway = sets[["HAY_BONE_MARROW_PLASMA_CELL"]],
+               stats = ranks) +
+  labs(title = "PLASMA CELL Identity",subtitle = "NDR VS DR") +
+  theme_minimal()
+```
+
+Finally, a horizontal bar plot of the significant pathways (FDR < 0.1), colored by which
+group they're enriched in (red = NDR, blue = DR).
+
+```{r gsea-barplot, eval=FALSE}
+sig.pathways=as.data.frame(NDR[NDR$padj < 0.1,])
+library(dplyr)
+library(ggplot2)
+
+# 1) Prep data
+df <- sig.pathways %>%
+  dplyr::mutate(
+    direction = ifelse(NES > 0, "NDR Enriched", "DR Enriched"),
+    label = gsub("^HALLMARK_", "", pathway),
+    label = gsub("_", " ", label),
+    label = gsub("REACTIVE OXIGEN", "REACTIVE OXYGEN", label, ignore.case = TRUE)
+  )
+
+df_plot <- df %>%
+  dplyr::arrange(desc(abs(NES))) %>%
+  dplyr::mutate(label = factor(label, levels = rev(unique(label[order(NES)]))))
+
+# 2) Plot
+p <- ggplot(df_plot, aes(x = label, y = NES, fill = direction)) +
+  geom_col(width = 0.7) +
+  geom_hline(yintercept = 0, linewidth = 0.4, colour = "grey40") +
+  scale_fill_manual(values = c("NDR Enriched" = "#E66B6B", "DR Enriched" = "#79C4D6")) +
+  coord_flip() +
+  labs(title = "Malignant PC NDR vs DR at Baseline", x = NULL, y = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+print(p)
+```
+
+---
+
+
+
+# Part 2: Immune microenvironment
+
+Part 1 focused on the cancer cells; this part turns to the **immune microenvironment** —
+every cell type *except* the malignant plasma cells. The goal is to learn whether the
+immune landscape at baseline (which cell types are present, in what proportions, and in
+what activation or exhaustion state) relates to durable response. The workflow mirrors
+Part 1: select the relevant cells, integrate the two cohorts with Harmony, then compare
+DR vs NDR both within specific cell types and across overall cell composition.
+
+---
+
+## Loading the public data and a marker check
+
+We reload the public dataset, re-create the response label, and pull raw counts for a
+panel of immune/exhaustion markers as a quick sanity check.
+
+```{r immune-load, eval=FALSE}
+all=readRDS(".../MM_CART_BCD_integrated50pc_Annotated_ClinicalData_infercnv_20231119.rds")
+all@meta.data$D270_response=ifelse(all@meta.data$IL18_PFS.group.2 == ">180days","DR","NDR")
+all@meta.data$sample=all@meta.data$orig.ident
+
+orig.expr=all@assays$RNA@counts[rownames(all@assays$RNA@counts) %in% c("TNFRSF17", "ADORA2A", "BTLA",
+                                                                        "CD160", "CD244", "CD27", "CD63","CD8A", "CD8B",
+                                                                        "CHST12", "CSF1", "CSF2", "CST7", "CTLA4", "CTSD",
+                                                                        "CTSW", "CXCR6", "ENTPD1", "FAM3C", "FASL", "GZMB", "HAVCR2",
+                                                                        "HOPX", "ID2", "IFNG", "IL10", "LAG3", "LAYN", "MIR155HG", "NKG7",
+                                                                        "PDCD1", "PRF1", "TIGIT", "TNFRSF9", "TOX", "VSIR", "CCL3", "CCL4",
+                                                                        "HAVCR1", "LAIR1", "XCL1", "KLRD1", "KIR3DL1",
+                                                                        "PTPN12","HLA-DRB1"),]
+```
+
+## Selecting immune cells and merging the cohorts
+
+Here we keep only the **non-plasma, non-doublet** cell types from each cohort (the
+inverse of what we did earlier), tag each by dataset, and merge the Moffitt immune object
+with the public immune cells into one combined object.
+
+```{r immune-select-merge, eval=FALSE}
+## Make sure RNA counts are present & sparse
+DefaultAssay(immune) <- "RNA"
+DefaultAssay(all)   <- "RNA"
+stopifnot(inherits(GetAssayData(immune, "RNA", "counts"), "dgCMatrix"))
+stopifnot(inherits(GetAssayData(all,   "RNA", "counts"), "dgCMatrix"))
+immune$dataset <- "moffitt"
+all$dataset   <- "public"
+
+## Keep every cell type EXCEPT plasma cells and doublets
+CELLTYPE_COL <- "predicted.celltype.l3"
+plasma_levels <- setdiff(unique(c(unique(all@meta.data$predicted.celltype.l3),unique(immune@meta.data$predicted.celltype.l2))),
+                         c("Plasma","Plasma cell","Malignant plasma"))
+plasma_levels=plasma_levels[plasma_levels != "Doublet"]
+all@meta.data$CELL.TYPE=all@meta.data$predicted.celltype.l2
+immune@meta.data$CELL.TYPE=immune@meta.data$predicted.celltype.l2
+all.imm <- subset(all, subset = !!as.name(CELLTYPE_COL) %in% plasma_levels)
+dim(all.imm)
+rm(list = c("all"))
+
+## Merge the two immune compartments
+merged <- merge(
+  x = immune, y = all.imm,
+  add.cell.ids = c("immune", "all"),
+  project = "merged",
+  merge.data = FALSE
+)
+dim(merged)
+table(merged$dataset)
+Idents(merged) <- "merged"
+# unify the mitochondrial-percent column name across cohorts
+merged@meta.data$percent.mt=ifelse(is.na(merged@meta.data$percent.mt),merged@meta.data$percent_mito,merged@meta.data$percent.mt)
+VlnPlot(merged, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+# unified cell-type label, finer where available
+merged@meta.data$CELL.TYPE=merged@meta.data$predicted.celltype.l3
+merged@meta.data$CELL.TYPE=ifelse(is.na(merged@meta.data$CELL.TYPE),merged@meta.data$predicted.celltype.l2,merged@meta.data$CELL.TYPE)
+rm(list = c("all.imm","immune"))
+```
+
+## Pre-processing, clustering and UMAP
+
+The same standard pipeline as the plasma-cell analysis: normalize, find variable genes,
+scale, PCA, cluster, and UMAP. The result is saved so this heavy step can be reloaded
+later.
+
+```{r immune-preprocess, eval=FALSE}
+merged <- NormalizeData(merged)
+merged <- FindVariableFeatures(merged, selection.method = "vst", nfeatures = 2000)
+top10 <- head(VariableFeatures(merged), 10)
+
+all.genes <- rownames(merged)
+merged <- ScaleData(merged, features = all.genes)
+merged <- RunPCA(merged, features = VariableFeatures(object = merged))
+print(merged[["pca"]], dims = 1:5, nfeatures = 5)
+DimPlot(merged, reduction = "pca") + NoLegend()
+
+merged <- FindNeighbors(merged, dims = 1:10)
+merged <- FindClusters(merged, resolution = 0.5)
+merged <- RunUMAP(merged, dims = 1:10)
+# saveRDS(merged, ".../combined_datasets_immune_cells.RDS")
+
+merged=readRDS(".../combined_datasets_immune_cells.RDS")
+DimPlot(merged, reduction = "umap")
+DimPlot(merged, reduction = "umap",group.by = "dataset")
+DimPlot(merged, reduction = "umap",group.by = "CELL.TYPE")
+```
+
+## Batch correction with Harmony
+
+
+```{r immune-harmony, eval=FALSE}
+merged=readRDS(".../combined_datasets_immune_cells.RDS")
+DefaultAssay(merged) <- "RNA"
+
+keep_assays <- intersect(c("RNA"), Assays(merged))
+merged  <- DietSeurat(merged, assays = keep_assays, data = TRUE, scale.data = FALSE)
+gc()
+DefaultAssay(merged) <- "RNA"
+merged <- NormalizeData(merged, verbose = FALSE)
+merged <- FindVariableFeatures(merged, verbose = FALSE)
+vf <- VariableFeatures(merged)
+merged <- ScaleData(merged, features = vf, verbose = FALSE)
+
+merged <- RunPCA(merged, features = vf)
+merged <- RunHarmony(merged, group.by.vars = "dataset")
+merged <- RunUMAP(merged, reduction = "harmony", dims = 1:50)
+
+DimPlot(merged, reduction = "umap",group.by = "dataset",pt.size = 0.01)
+DimPlot(merged, reduction = "umap",group.by = "CELL.TYPE",pt.size = 0.01)
+DimPlot(merged, reduction = "umap",group.by = "predicted.celltype.l1",pt.size = 0.01)
+DimPlot(merged, reduction = "umap",group.by = "sample",pt.size = 0.01)
+```
+
+## Restricting to baseline samples
+
+We keep only **baseline (pre-treatment)** samples.
+
+```{r immune-baseline, eval=FALSE}
+merged@meta.data$time.point=merged@meta.data$time_point
+library(stringr)
+merged@meta.data$time.point=ifelse(is.na(merged@meta.data$time.point),
+                     str_split_fixed(merged@meta.data$sample,"_",2)[,2],merged@meta.data$time.point)
+
+baseline <- subset(merged, subset = time.point %in% c("pre","PreTx"))
+
+# rebuild graph/UMAP in the same reduction used before
+reduc <- if ("harmony" %in% Reductions(baseline)) "harmony" else "pca"
+baseline <- FindNeighbors(baseline, reduction = reduc, dims = 1:30)
+baseline <- FindClusters(baseline, resolution = 0.5)
+baseline <- RunUMAP(baseline, reduction = reduc, dims = 1:30)
+
+DimPlot(baseline, group.by = "predicted.celltype.l1")
+DimPlot(baseline, reduction = "umap",group.by = "dataset",pt.size = 0.01)
+DimPlot(baseline, reduction = "umap",group.by = "CELL.TYPE",pt.size = 0.01)
+DimPlot(baseline, reduction = "umap",group.by = "sample",pt.size = 0.01)
+# saveRDS(merged, ".../combined_datasets_immune_cells_postHarmony.RDS")
+```
+
+## Differential expression within CD4 T cells
+
+Here we test DR vs NDR **within a specific cell type** — CD4 T cells — by setting the
+identity to the cell-type label and using `subset.ident` to restrict the comparison. We
+then keep the exhaustion-related genes of interest.
+
+```{r immune-deg, eval=FALSE}
+Idents(baseline) <- "predicted.celltype.l1"   # identities are the cell types
+de_plasma <- FindMarkers(
+  baseline,
+  ident.1 = "NDR", ident.2 = "DR",
+  group.by = "D270_response",   # compare DR vs NDR
+  subset.ident = c("CD4 T"),    # only within CD4 T cells
+  test.use = "wilcox", min.pct = 0.01, logfc.threshold = 0.1
+)
+
+new=de_plasma[rownames(de_plasma) %in% c("CD160", "CST7", "GZMB", "HAVCR2",
+                                       "LAG3", "PDCD1","TIGIT", "KLRD1",
+                                       "PTPN12","HLA-DRB1", "TOX"),]
+new$gene=rownames(new)
+de_plasma$gene=rownames(de_plasma)
+```
+
+## Exhaustion dot plot (CD4 T)
+
+A dot plot summarizing the exhaustion genes: dot **size** = percent of cells expressing
+the gene, dot **color** = log2 fold-change direction (red toward NDR, blue toward DR),
+and **stars** marking significance.
+
+```{r immune-dotplot, eval=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+pstars <- function(p) {
+  ifelse(p < 1e-4, "****",
+         ifelse(p < 1e-3, "***",
+                ifelse(p < 1e-2, "**",
+                       ifelse(p < 0.05, "*", ""))))
+}
+
+df_long <- new %>%
+  transmute(
+    gene,
+    FDR = p_val_adj,
+    lfc = avg_log2FC,
+    NDR_pct = pct.1 * 100,
+    DR_pct  = pct.2 * 100
+  ) %>%
+  pivot_longer(c(NDR_pct, DR_pct), names_to = "group", values_to = "pct") %>%
+  mutate(
+    D270_response = ifelse(group == "NDR_pct", "NDR", "DR"),
+    color_val = ifelse(D270_response == "NDR", lfc, -lfc),
+    stars = pstars(FDR),
+    p_label = sprintf("FDR=%.2g", FDR)
+  )
+
+gene_order <- rev(df_long %>% distinct(gene) %>% pull(gene))
+df_long$gene <- factor(df_long$gene, levels = gene_order)
+
+ggplot(df_long, aes(x = D270_response, y = gene)) +
+  geom_point(aes(size = pct, fill = color_val),
+             shape = 21, colour = "grey25", stroke = 0.25) +
+  geom_text(aes(label = stars), vjust = -0.9, size = 3.5, lineheight = 0.9, na.rm = TRUE) +
+  scale_size_continuous("Percent Expressed", range = c(1.8, 7),
+                        breaks = c(25, 50, 75), limits = c(0, 100)) +
+  scale_fill_gradient2("log2(FC)",
+                       low = "#2C7FB8", mid = "white", high = "#D7301F",
+                       midpoint = 0, limits = c(-4, 4)) +
+  labs(title = "Genes related to exhaustion - CD4 T", x = NULL, y = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+```
+
+## Per-sample immune expression table
+
+
+```{r immune-expr-table, eval=FALSE}
+expr=merged@assays$RNA@scale.data[rownames(merged@assays$RNA@scale.data) %in% c("TNFRSF17", "ADORA2A", "BTLA",
+                                                                        "CD160", "CD244", "CD27", "CD63","CD8A", "CD8B",
+                                                                        "CHST12", "CSF1", "CSF2", "CST7", "CTLA4", "CTSD",
+                                                                        "CTSW", "CXCR6", "ENTPD1", "FAM3C", "FASL", "GZMB", "HAVCR2",
+                                                                        "HOPX", "ID2", "IFNG", "IL10", "LAG3", "LAYN", "MIR155HG", "NKG7",
+                                                                        "PDCD1", "PRF1", "TIGIT", "TNFRSF9", "TOX", "VSIR", "CCL3", "CCL4",
+                                                                        "HAVCR1", "LAIR1", "XCL1", "KLRD1", "KIR3DL1",
+                                                                        "PTPN12","HLA-DRB1"),]
+expr=as.data.frame(expr)
+expr.t=t(expr)
+
+pdata=merged@meta.data
+pdata=as.data.frame(pdata)
+pdata=pdata[,1:112]
+
+df=merge(pdata,expr.t,by="row.names")
+df$time.point=df$time_point
+library(stringr)
+df$time.point=ifelse(is.na(df$time.point),
+                     str_split_fixed(df$sample,"_",2)[,2],df$time.point)
+
+write.table(df, ".../combined_matrix_immunecells_selected_genes_scaled_data.txt",
+            col.names = T, row.names = F, quote = F, sep="\t")
+```
+
+## Cell-type composition by response and cohort
+
+This part counts how many cells of each type each sample has, then tests whether **cell
+composition differs by outcome (DR vs NDR) and by cohort**. We reload a pre-built
+per-sample count table, restrict to baseline, exclude patient 11, and run Wilcoxon tests
+with boxplots — starting with the plasma-cell counts.
+
+```{r immune-composition, eval=FALSE}
+tab.cells.1=read.delim(".../number_of_cells_per_each_sample.txt", stringsAsFactors = F)
+tab.cells.1.bas=tab.cells.1[tab.cells.1$time.point == "pre",]
+tab.cells.1.bas=tab.cells.1.bas[tab.cells.1.bas$sample != "11a",]
+
+wilcox.test(tab.cells.1.bas$Plasma ~ tab.cells.1.bas$D270_response)
+boxplot(tab.cells.1.bas$Plasma ~ tab.cells.1.bas$D270_response)
+wilcox.test(tab.cells.1.bas$Plasma ~ tab.cells.1.bas$dataset)
+boxplot(tab.cells.1.bas$Plasma ~ tab.cells.1.bas$dataset)
+```
+
+We then loop over each cell-type column, producing a boxplot + Wilcoxon test for **every
+cell type vs cohort** and **vs outcome**, saving each as a PDF. The loop is run twice on
+the raw counts (one set of PDFs per grouping variable).
+
+```{r immune-composition-loops, eval=FALSE}
+# Enrichment of each cell type by DATASET (raw counts)
+for(i in 5:15){
+  pdf(paste(".../Enrichment_based_on_dataset/", colnames(tab.cells.1.bas)[i],"_VS_Dataset.pdf",sep=""),width = 5,height = 4)
+  test<-wilcox.test(tab.cells.1.bas[,i] ~ tab.cells.1.bas$dataset)
+  boxplot(tab.cells.1.bas[,i] ~ tab.cells.1.bas$dataset,
+          las=1, outline=T, main=colnames(tab.cells.1.bas)[i],
+          sub=paste("p.value = ",round(test$p.value,4),sep=""),
+          xlab="Dataset", ylab=paste("# of ",colnames(tab.cells.1.bas)[i],sep=""),
+          col=c("dodgerblue","orange"))
+  stripchart(tab.cells.1.bas[,i] ~ tab.cells.1.bas$dataset,
+             method = "jitter", pch = 19, cex=0.8, col = "grey60", vertical = TRUE, add = TRUE)
+  dev.off()
+}
+
+# Enrichment of each cell type by OUTCOME (raw counts)
+for(i in 5:15){
+  pdf(paste(".../Enrichment_based_on_outcome/", colnames(tab.cells.1.bas)[i],"_VS_Outcome.pdf",sep=""),width = 5,height = 4)
+  test<-wilcox.test(tab.cells.1.bas[,i] ~ tab.cells.1.bas$D270_response)
+  boxplot(tab.cells.1.bas[,i] ~ tab.cells.1.bas$D270_response,
+          las=1, outline=T, main=colnames(tab.cells.1.bas)[i],
+          sub=paste("p.value = ",round(test$p.value,4),sep=""),
+          xlab="Outcome", ylab=paste("# of ",colnames(tab.cells.1.bas)[i],sep=""),
+          col=c("dodgerblue","orange"))
+  stripchart(tab.cells.1.bas[,i] ~ tab.cells.1.bas$D270_response,
+             method = "jitter", pch = 19, cex=0.8, col = "grey60", vertical = TRUE, add = TRUE)
+  dev.off()
+}
+```
+
+Counts can be misleading if samples have very different total cell numbers, so we convert
+each cell type into a **percentage of total immune cells** and repeat the same two loops
+on those proportions.
+
+```{r immune-composition-pct, eval=FALSE}
+# convert counts to percentage of total immune cells
+for(i in 5:15){
+  tab.cells.1.bas[,ncol(tab.cells.1.bas) + 1]=tab.cells.1.bas[,i] / tab.cells.1.bas$tot.immune
+  colnames(tab.cells.1.bas)[ncol(tab.cells.1.bas)]=paste("perc.",colnames(tab.cells.1.bas)[i],sep="")
+}
+
+# Percentages by DATASET
+for(i in 18:27){
+  pdf(paste(".../Enrichment_based_on_dataset/Percentage_", colnames(tab.cells.1.bas)[i],"_VS_Dataset.pdf",sep=""),width = 5,height = 4)
+  test<-wilcox.test(tab.cells.1.bas[,i] ~ tab.cells.1.bas$dataset)
+  boxplot(tab.cells.1.bas[,i] ~ tab.cells.1.bas$dataset,
+          las=1, outline=T, main=colnames(tab.cells.1.bas)[i],
+          sub=paste("p.value = ",round(test$p.value,4),sep=""),
+          xlab="Dataset", ylab=paste("% of ",colnames(tab.cells.1.bas)[i],sep=""),
+          col=c("dodgerblue","orange"))
+  stripchart(tab.cells.1.bas[,i] ~ tab.cells.1.bas$dataset,
+             method = "jitter", pch = 19, cex=0.8, col = "grey60", vertical = TRUE, add = TRUE)
+  dev.off()
+}
+
+# Percentages by OUTCOME
+for(i in 18:27){
+  pdf(paste(".../Enrichment_based_on_outcome/Percentage_", colnames(tab.cells.1.bas)[i],"_VS_Outcome.pdf",sep=""),width = 5,height = 4)
+  test<-wilcox.test(tab.cells.1.bas[,i] ~ tab.cells.1.bas$D270_response)
+  boxplot(tab.cells.1.bas[,i] ~ tab.cells.1.bas$D270_response,
+          las=1, outline=T, main=colnames(tab.cells.1.bas)[i],
+          sub=paste("p.value = ",round(test$p.value,4),sep=""),
+          xlab="Outcome", ylab=paste("% of ",colnames(tab.cells.1.bas)[i],sep=""),
+          col=c("dodgerblue","orange"))
+  stripchart(tab.cells.1.bas[,i] ~ tab.cells.1.bas$D270_response,
+             method = "jitter", pch = 19, cex=0.8, col = "grey60", vertical = TRUE, add = TRUE)
+  dev.off()
+}
+```
+
+Finally, we combine CD4 and CD8 T cells into a single **total T-cell percentage** and
+test whether it differs between DR and NDR, plus a fresh per-sample cell-type table.
+
+```{r immune-tcell-pct, eval=FALSE}
+tab.cells.1.bas$perc.T.cells=(tab.cells.1.bas$CD4.T + tab.cells.1.bas$CD8.T) / tab.cells.1.bas$tot.immune
+test<-wilcox.test(tab.cells.1.bas$perc.T.cells ~ tab.cells.1.bas$D270_response)
+boxplot(tab.cells.1.bas$perc.T.cells ~ tab.cells.1.bas$D270_response,
+        las=1, outline=T, main="Percentage of T cells",
+        sub=paste("p.value = ",round(test$p.value,4),sep=""),
+        xlab="Outcome", ylab=paste("% of ","T cells",sep=""),
+        col=c("dodgerblue","orange"))
+stripchart(tab.cells.1.bas$perc.T.cells ~ tab.cells.1.bas$D270_response,
+           method = "jitter", pch = 19, cex=0.8, col = "grey60", vertical = TRUE, add = TRUE)
+
+tab.cells1=as.data.frame.matrix(table(df$sample,df$CELL.TYPE))
+tab.cells1$tot=rowSums(tab.cells1)
+```
+
+---
+
+# Session information
+
+Including `sessionInfo()` records the exact package versions used, which reviewers and
+readers appreciate for reproducibility.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```
