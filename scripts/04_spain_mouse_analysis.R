@@ -18,7 +18,7 @@ library(rstatix)
 library(clusterProfiler)
 library(ComplexHeatmap)
 
-setwd("~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq/mouse/")
+setwd("...")
 
 options(future.globals.maxSize = 1000*50 * 1024^2) # 50 GB
 
@@ -190,9 +190,9 @@ save(all_merge_sub, file = "all_merge_sub_OTHER.20250328.RData")
 # =============================================================================
 
 # Load the three processed Seurat objects (BIC/PBIC, MIC, OTHER)
-load("~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq/mouse/all_merge_sub_BIC.20250328.RData");   bic   <- all_merge_sub
-load("~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq/mouse/all_merge_sub_MIC.20250328.RData");   mic   <- all_merge_sub
-load("~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq/mouse/all_merge_sub_OTHER.20250328.RData"); other <- all_merge_sub
+load(".../all_merge_sub_BIC.20250328.RData");   bic   <- all_merge_sub
+load(".../all_merge_sub_MIC.20250328.RData");   mic   <- all_merge_sub
+load(".../all_merge_sub_OTHER.20250328.RData"); other <- all_merge_sub
 
 # Genes of interest (key myeloma / plasma-cell markers)
 targets      <- c("Trp53","Tnfrsf17","Myc","Nsd2","Whsc1","Mmset")
@@ -215,11 +215,11 @@ df.other <- extract_expr(other, genes_present)
 all <- rbind(df.bic, df.mic, df.other)
 
 write.table(all,
-  "~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq/mouse/all_bic_pbic_mic_other_mouse_22OCT25.txt",
+  ".../all_bic_pbic_mic_other_mouse_22OCT25.txt",
   col.names = T, row.names = F, quote = F, sep = "\t")
 
 # Reload and filter strains (remove BCMO and empty)
-all   <- read.delim("~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq/mouse/all_bic_pbic_mic_other_mouse_22OCT25.txt", stringsAsFactors = F)
+all   <- read.delim(".../all_bic_pbic_mic_other_mouse_22OCT25.txt", stringsAsFactors = F)
 all.1 <- all[!all$strain %in% c("BCMO",""), ]
 table(all.1$strain)
 
@@ -267,7 +267,7 @@ library(msigdbr)
 library(EnhancedVolcano)
 
 # Load BIC dataset
-load("~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq_JuanJo/mouse/all_merge_sub_BIC.20250328.RData")
+load(".../all_merge_sub_BIC.20250328.RData")
 bic <- all_merge_sub
 
 # Subset to malignant plasma cells
@@ -351,7 +351,7 @@ fg  <- fgsea(pathways = sets, stats = ranks, nperm = 10000)
 res_bic <- fg[order(fg$padj), c("pathway","NES","padj")]
 
 write.table(as.data.frame(res_bic),
-  "~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq_JuanJo/Figures/Malignant_sc_plasma_cells_GSEA_Mouse_PBIC_vs_BIC.txt",
+  ".../Malignant_sc_plasma_cells_GSEA_Mouse_PBIC_vs_BIC.txt",
   col.names = T, row.names = F, quote = F, sep = "\t")
 
 # Enrichment plot for the plasma-cell identity gene set
@@ -387,7 +387,7 @@ ggplot(df_bic, aes(x = label, y = NES, fill = direction)) +
 # PART 4 — GSEA on pseudobulk DEGs: PBIC vs MIC
 # =============================================================================
 
-load("~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq_JuanJo/mouse/all_merge_sub_MIC.20250328.RData")
+load(".../all_merge_sub_MIC.20250328.RData")
 mic <- all_merge_sub
 
 # Subset plasma cells from each dataset
@@ -465,7 +465,7 @@ fg.mic  <- fgsea(pathways = sets, stats = ranks.mic, nperm = 10000)
 res_mic <- fg.mic[order(fg.mic$padj), c("pathway","NES","padj")]
 
 write.table(as.data.frame(res_mic),
-  "~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq_JuanJo/Figures/Malignant_sc_plasma_cells_GSEA_Mouse_PBIC_vs_MIC.txt",
+  ".../Malignant_sc_plasma_cells_GSEA_Mouse_PBIC_vs_MIC.txt",
   col.names = T, row.names = F, quote = F, sep = "\t")
 
 plotEnrichment(pathway = sets[["PLASMA_CELL"]], stats = ranks.mic) +
