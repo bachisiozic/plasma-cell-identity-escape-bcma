@@ -195,7 +195,7 @@ single-cell **quality control (QC)** checks and visualize them:
 Violin plots and scatter plots help us see where the bulk of "good" cells sit.
 
 ```{r moffitt-load-qc, eval=FALSE}
-tumor=readRDS("/Users/ziccheb/Library/CloudStorage/Box-Box/CAR-T_Paper_Maura_Freeman/Pt_Malignant_plasma_pt1_excluded_Pre_Tx.RDS")
+tumor=readRDS(".../Pt_Malignant_plasma_pt1_excluded_Pre_Tx.RDS")
 dim(tumor@meta.data) # 41515    58
 dim(Assays(tumor,slot = "RNA")) # [1] 31478 41515
 Idents(tumor) <- "tumor"  # set contrast as identity
@@ -223,7 +223,7 @@ tumor <- subset(
 We also load a baseline immune-microenvironment object.
 
 ```{r moffitt-immune, eval=FALSE}
-immune=readRDS("/Users/ziccheb/Library/CloudStorage/Box-Box/CAR-T_Paper_Maura_Freeman/baseline_iTME.rds")
+immune=readRDS("./baseline_iTME.rds")
 dim(immune@meta.data) # 28313   110
 dim(Assays(immune,slot = "RNA"))
 ```
@@ -239,7 +239,7 @@ survival (PFS) over 180 days are called **DR (durable response)**, everyone else
 column.
 
 ```{r dhodapkar-load, eval=FALSE}
-all=readRDS("~/Library/CloudStorage/Box-Box/DURANTE/MM_CART_BCD_integrated50pc_Annotated_ClinicalData_infercnv_20231119.rds")
+all=readRDS(".../MM_CART_BCD_integrated50pc_Annotated_ClinicalData_infercnv_20231119.rds")
 dim(all@meta.data) # 202064    306
 head(all@meta.data)
 all@meta.data$D270_response=ifelse(all@meta.data$IL18_PFS.group.2 == ">180days","DR","NDR")
