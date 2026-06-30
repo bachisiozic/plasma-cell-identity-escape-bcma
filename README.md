@@ -32,8 +32,7 @@ Throughout, **DR = durable response** (progression-free survival > 180 days) and
 ├── LICENSE
 ├── .gitignore
 ├── scripts/
-│   ├── 01_genomic_data_preparation.R   # build the analysis-ready genomic tables
-│   ├── 02_genomic_analysis.R           # WGS analyses + main/supplementary figures
+│   ├── 01_genomic_analysis.R           # WGS analyses + main/supplementary figures
 │   ├── 03_scRNAseq_analysis.Rmd        # scRNA-seq report (tumor + immune), knit to HTML
 │   ├── 04_spain_mouse_analysis.R       # Spain cohort mouse scRNA-seq + GSEA (BIC/PBIC/MIC)
 │   └── 05_vkmyc_mouse_analysis.R       # vkMYC mouse model DEG analysis + GSEA
