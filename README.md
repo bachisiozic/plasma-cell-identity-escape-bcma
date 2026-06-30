@@ -5,7 +5,7 @@ This repository contains the analysis code accompanying the manuscript:
 > **Plasma cell identity escape drives resistance to anti-BCMA T-cell–redirecting therapy in multiple myeloma.**
 > *Maura F., et al.
 
-The study integrates two complementary data modalities to understand why some multiple
+The study integrates three complementary data modalities to understand why some multiple
 myeloma patients lose durable response to BCMA-targeted T-cell–redirecting therapy
 (CAR-T and bispecific antibodies, "TCE"):
 
@@ -15,6 +15,9 @@ myeloma patients lose durable response to BCMA-targeted T-cell–redirecting the
 2. **Single-cell RNA-seq (scRNA-seq)** — the malignant plasma-cell compartment and the
    surrounding immune microenvironment, comparing durable (DR) versus non-durable (NDR)
    responders.
+3. **Mouse model validation** — two independent mouse models (Spain cohort: BIC/PBIC/MIC
+   samples; vkMYC model: responders vs non-responders) confirming plasma-cell identity
+   loss and GSEA signatures observed in human data.
 
 Throughout, **DR = durable response** (progression-free survival > 180 days) and
 **NDR = non-durable response**.
@@ -31,21 +34,16 @@ Throughout, **DR = durable response** (progression-free survival > 180 days) and
 ├── scripts/
 │   ├── 01_genomic_data_preparation.R   # build the analysis-ready genomic tables
 │   ├── 02_genomic_analysis.R           # WGS analyses + main/supplementary figures
-│   └── 03_scRNAseq_analysis.Rmd        # scRNA-seq report (tumor + immune), knit to HTML
+│   ├── 03_scRNAseq_analysis.Rmd        # scRNA-seq report (tumor + immune), knit to HTML
+│   ├── 04_spain_mouse_analysis.R       # Spain cohort mouse scRNA-seq + GSEA (BIC/PBIC/MIC)
+│   └── 05_vkmyc_mouse_analysis.R       # vkMYC mouse model DEG analysis + GSEA
 ├── gene_sets/                          # gene sets used for GSEA / enrichment
-│   ├── README.md
-│   └── CIN70.gmt
-│   └── h.all.v6.2.symbols.gmt_MOD_CART_paper.txt
-│   └── HAY_BONE_MARROW_PLASMA_CELL.v2025.1.Hs.gmt
-│   └── Mus_musculus_hallmarks_cin70_plasmacell.RData
-├── data/                               # input tables (see data/README.md)
-│   └── README.md
-└── results/                            # derived "source data" tables that reproduce figures
-    └── README.md
+   ├── README.md
+   └── CIN70.gmt
+   └── h.all.v6.2.symbols.gmt_MOD_CART_paper.txt
+   └── HAY_BONE_MARROW_PLASMA_CELL.v2025.1.Hs.gmt
+   └── Mus_musculus_hallmarks_cin70_plasmacell.RData
 ```
-
-The two modalities are **independent**: you can run the genomic analysis without the
-single-cell analysis and vice versa.
 
 ---
 
@@ -77,12 +75,22 @@ if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocMana
 BiocManager::install(c("DESeq2","edgeR","fgsea","msigdbr"))
 ```
 
+**Mouse model analyses (`04`–`05`)**
+
+```r
+install.packages(c("Seurat","dplyr","ggplot2","patchwork","ggpubr","rstatix","reshape2"))
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+BiocManager::install(c("DESeq2","edgeR","fgsea","msigdbr","ComplexHeatmap",
+                       "clusterProfiler","EnhancedVolcano"))
+```
+
 ---
+
 
 
 ## Data availability
 
-- WGS / variant calls: `<EGA/dbGaP accession>`
+- WGS: `EGAS50000001817`
 
 ---
 
@@ -91,4 +99,3 @@ BiocManager::install(c("DESeq2","edgeR","fgsea","msigdbr"))
 
 - Bachisio Ziccheddu — `ziccheb@mskcc.org`
 - Francesco Maura — `mauraf@mskcc.org`
-
