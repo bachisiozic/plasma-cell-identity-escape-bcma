@@ -21,7 +21,7 @@ library(msigdbr)
 # =============================================================================
 
 rna <- read.delim(
-  "~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq_JuanJo/mouse/vkMyc/RNA_fra_annot.txt",
+  ".../RNA_fra_annot.txt",
   stringsAsFactors = FALSE
 )
 
@@ -91,7 +91,7 @@ res[rownames(res) == "Myc", ]
 
 # Save full DEG table
 write.table(as.data.frame(res),
-  "~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq_JuanJo/mouse/vkMyc/DEGs_nonresp_VS_resp_vkMYC.txt",
+  ".../DEGs_nonresp_VS_resp_vkMYC.txt",
   col.names = TRUE, row.names = TRUE, quote = FALSE, sep = "\t")
 
 
@@ -101,7 +101,7 @@ write.table(as.data.frame(res),
 
 # Load pre-computed DEG results (skip if running sequentially from Part 2)
 res <- read.delim(
-  "~/Library/CloudStorage/OneDrive-MemorialSloanKetteringCancerCenter/Documents/Projects/Team/Fra/scRNAseq_JuanJo/mouse/vkMyc/DEGs_nonresp_VS_resp_vkMYC.txt",
+  ".../DEGs_nonresp_VS_resp_vkMYC.txt",
   stringsAsFactors = FALSE
 )
 
