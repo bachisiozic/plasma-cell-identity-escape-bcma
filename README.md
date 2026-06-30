@@ -90,7 +90,7 @@ BiocManager::install(c("DESeq2","edgeR","fgsea","msigdbr","ComplexHeatmap",
 
 ## Data availability
 
-- WGS: `EGAS50000001817`
+- WGS: `EGAS50000001817` and `EGAS50000000546`
 
 ---
 
