@@ -228,7 +228,7 @@ all_dnds<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_
 ALL_SV<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/ALL_SV_FINAL.txt")
 
 all_jco$sample[!all_jco$sample%in% all_dnds$sample]
-all_jco$sample[!all_jco$sample%in% ALL_SV_TCE$sample]
+all_jco$sample[!all_jco$sample%in% ALL_SV$sample]
 all_jco$sample[!all_jco$sample%in% ALL_CNV$sample]
 
 #######################################################################
@@ -300,6 +300,8 @@ jco_clin_genomic$Gain_Amp1q[jco_clin_genomic$Gain_Amp1q==2]<-1
 jco_clin_genomic[,16:(ncol(jco_clin_genomic)-1)][jco_clin_genomic[,16:(ncol(jco_clin_genomic)-1)]>1]<-1
 ref_time<- c(30,60,90, 120,150,180, 270, 360) # adjust definition of refractory based on different time brackets. 
 
+ref_jco=list()
+for(j in (1:5)){
 ref_jco[[j]] <- run_fisher_screen(
   jco_clin_genomic = jco_clin_genomic,
   refractory_time = ref_time[j]
@@ -427,7 +429,7 @@ ns_annot_driver_CART <- run_km_screen(clin_ns_annot_interval[clin_ns_annot_inter
 ns_annot_driver_tce <- run_km_screen(clin_ns_annot_interval[clin_ns_annot_interval$cohort=="CART",])
 
 ## refractory
-ref_ns_focal<-list()
+ref_ns_focal=list()
 for(j in (1:5)){
   ref_ns_focal[[j]] <- run_fisher_screen(
     jco_clin_genomic = clin_ns_annot_interval,
@@ -481,6 +483,7 @@ sv_focal_driver_tce <- run_km_screen(clin_sv_focal_interval[clin_sv_focal_interv
 # "CDKN2C|FAF1" , "GLCCI1" ,  "TNFRSF17" --> signigicant genes
 
 ## refractory
+ref_sv_focal=list()  
 for(j in (1:5)){
 ref_sv_focal[[j]] <- run_fisher_screen(
   jco_clin_genomic = clin_sv_focal_interval,
@@ -899,12 +902,12 @@ all_tce_CART<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/C
 
 ## define complex genomics
 all_tce_CART$complex_genomoics<- 0
-all_tce_CART$complex_genomoics[rowSums(all_tce_CART_manual[,c("CDKN2C","CCSER1","GLCCI1", 
+all_tce_CART$complex_genomoics[rowSums(all_tce_CART[,c("CDKN2C","CCSER1","GLCCI1", 
                                                        "Gain_Amp1q",   "RPL5" ,   
                                                        "ATM"  , "TP53")])>0]<- "complex"
 ## define loss of plasma cell genes
 all_tce_CART$plasmacell<- 0
-all_tce_CART$plasmacell[rowSums(all_tce_CART_manual[,c( "XBP1" ,"CD38", "IKZF3" ,  
+all_tce_CART$plasmacell[rowSums(all_tce_CART[,c( "XBP1" ,"CD38", "IKZF3" ,  
                                                  "TNFRSF17","TNFRSF13B",
                                                  "POU2AF1")])>0]<- "plasmacell"
 # figure 4A
@@ -993,11 +996,11 @@ sensitivity_pre[sensitivity_pre$p_value>0.05,]
 
 ####################################################################
 ###
-### plot minially deleted regions - for example TP53
+### plot minially deleted regions - for example CD38
 ###
 #####################################################################
 
-ALL_CNV_cd38<- ALL_CNV[ALL_CNV$sample %in% all_tce_CART_manual$sample[all_tce_CART_manual$CD38>0],] ## select deleted
+ALL_CNV_cd38<- ALL_CNV[ALL_CNV$sample %in% all_tce_CART$sample[all_tce_CART$CD38>0],] ## select deleted
 ALL_CNV_cd382<-ALL_CNV_cd38[ALL_CNV_cd38$sample %in% all_tce_CART$sample,]# pre treatment sample only
 ALL_CNV_cd382<-ALL_CNV_cd382[ALL_CNV_cd382$chr==4 & ALL_CNV_cd382$min==0 &
                                ALL_CNV_cd382$start<gene_ref$end[gene_ref$region=="CD38"] &
