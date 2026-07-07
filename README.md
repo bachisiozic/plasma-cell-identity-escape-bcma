@@ -33,9 +33,11 @@ Throughout, **DR = durable response** (progression-free survival > 180 days) and
 ├── .gitignore
 ├── scripts/
 │   ├── 01_genomic_analysis.R           # WGS analyses + main/supplementary figures
-│   ├── 03_scRNAseq_analysis.Rmd        # scRNA-seq report (tumor + immune), knit to HTML
-│   ├── 04_spain_mouse_analysis.R       # Spain cohort mouse scRNA-seq + GSEA (BIC/PBIC/MIC)
-│   └── 05_vkmyc_mouse_analysis.R       # vkMYC mouse model DEG analysis + GSEA
+│   ├── 02_scRNAseq_analysis.Rmd        # scRNA-seq report (tumor + immune), knit to HTML
+│   ├── 03_spain_mouse_analysis.R       # Spain cohort mouse scRNA-seq + GSEA (BIC/PBIC/MIC)
+│   └── 04_vkmyc_mouse_analysis.R       # vkMYC mouse model DEG analysis + GSEA
+│   └── 05_GSEA_tumor_PFScutoff.R       # GSEA using different PFS thresholds
+│   └── 06_immune_cells_PFScutoff.R     # Looking the T cells compartment using different PFS thresholds
 └── gene_sets/                          # gene sets used for GSEA / enrichment
    ├── README.md
    └── CIN70.gmt
