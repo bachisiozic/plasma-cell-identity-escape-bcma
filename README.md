@@ -1,5 +1,8 @@
 # Plasma cell identity escape drives resistance to anti-BCMA T-cell–redirecting therapy in multiple myeloma
 
+- Bachisio Ziccheddu — `ziccheb@mskcc.org`
+- Francesco Maura — `mauraf@mskcc.org`
+
 This repository contains the analysis code accompanying the manuscript:
 
 > **Plasma cell identity escape drives resistance to anti-BCMA T-cell–redirecting therapy in multiple myeloma.**
@@ -94,9 +97,3 @@ BiocManager::install(c("DESeq2","edgeR","fgsea","msigdbr","ComplexHeatmap",
 - WGS: `EGAS50000001817` and `EGAS50000000546`
 
 ---
-
-
-## Contact
-
-- Bachisio Ziccheddu — `ziccheb@mskcc.org`
-- Francesco Maura — `mauraf@mskcc.org`
