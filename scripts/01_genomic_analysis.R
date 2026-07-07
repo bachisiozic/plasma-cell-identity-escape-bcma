@@ -894,20 +894,21 @@ all_cnv_focal_interval_mat[all_cnv_focal_interval_mat$POU2AF1>0,]$sample
 ## final matrix
 ##
 ##############################################################
-col_sel_features<- c("CDKN2C","CCSER1","GLCCI1", "Gain_Amp1q",   "RPL5" ,   "ATM"  , "TP53",
+col_sel_features<- c("CDKN2C","CCSER1","GLCCI1", "Gain_Amp1q",   "RPL5" ,   "ATM"  , "TP53","MAF",
                      "XBP1" ,    "CD38"    , "IKZF3" ,  "TNFRSF17","POU2AF1", "TNFRSF13B")
 
-all_tce_CART<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/final_matrix_genomic_drivers.txt")
-
+all_tce_CART<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/final_matrix_genomic_drivers2.txt")
+# write.table(all_tce_CART, "~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/final_matrix_genomic_drivers2.txt",
+#             sep="\t", quote=F)
 
 ## define complex genomics
 all_tce_CART$complex_genomoics<- 0
-all_tce_CART$complex_genomoics[rowSums(all_tce_CART[,c("CDKN2C","CCSER1","GLCCI1", 
-                                                       "Gain_Amp1q",   "RPL5" ,   
-                                                       "ATM"  , "TP53")])>0]<- "complex"
+all_tce_CART$complex_genomoics[rowSums(all_tce_CART[,c("CDKN2C","CCSER1","GLCCI1",
+                                                       "Gain_Amp1q",   "RPL5" ,
+                                                       "ATM"  , "MAF","TP53")])>0]<- "complex"
 ## define loss of plasma cell genes
 all_tce_CART$plasmacell<- 0
-all_tce_CART$plasmacell[rowSums(all_tce_CART[,c( "XBP1" ,"CD38", "IKZF3" ,  
+all_tce_CART$plasmacell[rowSums(all_tce_CART[,c( "XBP1" ,"CD38", "IKZF3" ,
                                                  "TNFRSF17","TNFRSF13B",
                                                  "POU2AF1")])>0]<- "plasmacell"
 # figure 4A
@@ -917,9 +918,10 @@ color_annot_final<- list("refractory" = c("0" = "cornflowerblue", "1"="firebrick
                               "os_code" = c( "0" ="darkolivegreen1", "1" = "forestgreen"),
                               "emd" = c("No"="goldenrod","Yes"="darkolivegreen4"),
                               "pre_bcma" = c("No"="cornflowerblue", "Yes"="darkblue"),
-                              "cohort"=c("CART" = "grey15", "TCE"="grey90")) 
+                              "cohort"=c("CART" = "grey15", "TCE"="grey90"))
 
-pheatmap(t(all_tce_CART[,col_sel_featureS]), show_colnames = T,cluster_cols = T,cluster_rows = F,
+
+pheatmap(t(all_tce_CART[,col_sel_features]), show_colnames = T,cluster_cols = T,cluster_rows = F,
          annotation_col = all_tce_CART[,c("emd","pfs_code","os_code",
                                           "refractory" ,"cohort")],
          annotation_colors = color_annot_final,
