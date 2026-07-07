@@ -67,7 +67,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocMana
 BiocManager::install(c("GenomicRanges","IRanges","GenomicFeatures","maftools",
                        "ComplexHeatmap","biomaRt"))
 # specialised (myeloma) packages
-# mmsig:   https://github.com/UM-Myeloma-Genomics/mmSig
+# mmsig:  https://github.com/bachisiozic/mmsig
 # dndscv:  https://github.com/im3sanger/dndscv
 ```
 
