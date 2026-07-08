@@ -99,7 +99,7 @@ for(j in c("D60_response","D90_response","D120_response","D150_response","D180_r
   names(gs1)<-bm.pc[,1]
   bm.pc<-bm.pc[,-c(1:2)]
   for(i in 1:nrow(bm.pc)){
-    temp<-as.vector(as.matrix(setlist[i,]))
+    temp<-as.vector(as.matrix(bm.pc[i,]))
     temp<-temp[temp!=""]
     gs1[[i]]<-temp
   }
