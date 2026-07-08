@@ -29,12 +29,9 @@ rna <- read.delim(
 rna1 <- rna[, grep("V_V", colnames(rna), invert = TRUE)]
 
 # Sample metadata: 10 vkMYC mice with known treatment outcome
-sample_info <- data.frame(
-  sample  = c("Vk40149","Vk39225","Vk32908","Vk12653","Vk12598",
-               "Vk29790","Vk39814","Vk27181","Vk35633","Vk35984"),
-  outcome = c(rep("resp", 7), rep("nonresp", 3))
-)
-dim(sample_info)  # 10 x 2
+int_marta<- data.frame(sample=c("Vk12598","Vk12653","Vk29790","Vk32908","Vk36574","Vk39225","Vk39608","Vk39814",
+                                "Vk27181","Vk35633","Vk35984","Vk41844","Vk42963","Vk45199"),
+                       outcome=c(rep("resp", 8), rep("nonresp", 6)))
 
 # Collapse multiple columns per sample into a single median column
 # (some samples have >1 technical replicate in the expression matrix)
@@ -54,7 +51,7 @@ rna2 <- rna1[, c(1:4, grep("median", colnames(rna1)))]
 dim(rna2)
 
 # Retain SYMBOL column and median expression; drop unannotated rows
-expr <- rna2[, c(2, 5:10)]
+expr <- rna2[, c(2, 5:18)]
 expr <- expr[complete.cases(expr$SYMBOL), ]
 
 
@@ -109,7 +106,6 @@ res <- read.delim(
 ranks <- res$stat
 ok    <- !is.na(ranks)
 ranks <- ranks[ok]
-ranks[ranks == Inf] <- 999
 names(ranks) <- rownames(res)[ok]
 
 # --- Gene sets ---------------------------------------------------------------
