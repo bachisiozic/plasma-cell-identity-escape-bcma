@@ -457,9 +457,9 @@ res.mic[rownames(res.mic) == "Tnfrsf17", ]
 #                 col = c("grey30","forestgreen","grey30","red2"))
 
 
-ranks.mic <- de_plasma_mic$stat[!is.na(de_plasma_mic$stat)]
+ranks.mic <- res.mic$stat[!is.na(res.mic$stat)]
 ranks.mic[ranks.mic == Inf] <- 999
-names(ranks.mic) <- rownames(de_plasma_mic)[!is.na(de_plasma_mic$stat)]
+names(ranks.mic) <- rownames(res.mic)[!is.na(res.mic$stat)]
 
 fg.mic  <- fgsea(pathways = sets, stats = ranks.mic, nperm = 10000)
 res_mic <- fg.mic[order(fg.mic$padj), c("pathway","NES","padj")]
