@@ -708,7 +708,7 @@ gs1<-vector("list",length=nrow(bm.pc))
 names(gs1)<-bm.pc[,1]
 bm.pc<-bm.pc[,-c(1:2)]
 for(i in 1:nrow(bm.pc)){
-  temp<-as.vector(as.matrix(setlist[i,]))   # <-- reads setlist, not bm.pc (see note)
+  temp<-as.vector(as.matrix(bm.pc[i,]))   
   temp<-temp[temp!=""]
   gs1[[i]]<-temp
 }
