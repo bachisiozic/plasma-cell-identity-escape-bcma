@@ -67,7 +67,6 @@ for(j in c("D60_response","D90_response","D120_response","D150_response","D180_r
   ranks <- res$stat 
   ok <- !is.na(ranks)
   ranks <- ranks[ok]
-  ranks[ranks == Inf] <- 999
   names(ranks) <- rownames(res)[ok]
   
   
