@@ -668,7 +668,6 @@ First we build the ranked list, handling missing values and infinities.
 ranks <- res$stat # in order to put CD19 low VS CD19 high
 ok <- !is.na(ranks)
 ranks <- ranks[ok]
-ranks[ranks == Inf] <- 999
 names(ranks) <- rownames(res)[ok]
 ```
 
