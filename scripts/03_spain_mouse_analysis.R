@@ -317,7 +317,6 @@ EnhancedVolcano(res, lab = rownames(res), x = 'log2FoldChange', y = 'padj',
 
 # --- GSEA using DESeq2 Wald stat as ranking ---------------------------------
 ranks <- res$stat[!is.na(res$stat)]
-ranks[ranks == Inf] <- 999
 names(ranks) <- rownames(res)[!is.na(res$stat)]
 
 # Gene sets: MSigDB Hallmarks + CIN70 + plasma-cell identity
@@ -458,7 +457,6 @@ res.mic[rownames(res.mic) == "Tnfrsf17", ]
 
 
 ranks.mic <- res.mic$stat[!is.na(res.mic$stat)]
-ranks.mic[ranks.mic == Inf] <- 999
 names(ranks.mic) <- rownames(res.mic)[!is.na(res.mic$stat)]
 
 fg.mic  <- fgsea(pathways = sets, stats = ranks.mic, nperm = 10000)
