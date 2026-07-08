@@ -244,7 +244,7 @@ jco_clin_genomic[,16:(ncol(jco_clin_genomic)-1)][jco_clin_genomic[,16:(ncol(jco_
 
 jco_clin_sig <- run_km_screen(jco_clin_genomic)
 jco_clin_sig_CART <- run_km_screen(jco_clin_genomic[jco_clin_genomic$cohort=="CART",])
-jco_clin_sig_tce <- run_km_screen(jco_clin_genomic[jco_clin_genomic$cohort=="CART",])
+jco_clin_sig_tce <- run_km_screen(jco_clin_genomic[jco_clin_genomic$cohort=="TCE",])
 
 # print some results
 jco_clin_sig[jco_clin_sig$p_adj<0.12,]
@@ -525,7 +525,7 @@ cnv_focal_driver_tce <- run_km_screen(clin_cnv_focal_interval[clin_cnv_focal_int
 # this showed  "POU2AF1","CD38" and CCSER1"        
 
 ## refractory
-ref_cnv_focal_focal
+ref_cnv_focal_focal=list()
 for(j in (1:5)){
   ref_cnv_focal_focal[[j]] <- run_fisher_screen(
     jco_clin_genomic = clin_cnv_focal_interval,
