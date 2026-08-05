@@ -183,7 +183,14 @@ setwd("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_man
 # (e.g. Diamond et al. Blood 2025, Maura et al. Nat Cancer 2023)
 
 gene_ref<- read.delim("all_myeloma_and_cancer_driver_genes.txt")
-
+head(gene_ref)
+#  chrom     start       end      region gene_class
+#1     1  51434001  51478000 CDKN2C|FAF1       LOSS
+#2     1  92783001  92894000        RPL5       LOSS
+#3     1 118151180 118629757      FAM46C       LOSS
+#4     1 150474795 153228445        MCL1       GAIN
+#5     1 160247001 161160000      SLAMF7       GAIN
+#6     1 203219770 203329391        BTG2       GAIN
 
 ### upload clinical data TCE and cart
 
@@ -194,6 +201,17 @@ clin_all$note[clin_all$sample %in%c("P2123","P2289")] <-"post-TCE_ref" # these a
 
 # figure 1a
 clin_all$code<-1
+head(clin_all)
+#                   sample age sex num_lines emd pre_bcma refractory complex_simple pfs_code pfs_time os_code os_time  product cohort note code
+#1                    P2106  69   M         4  No       No          0              1        0      510       0     510   idecel   CART         1
+#2                    P2263  60   M         4  No       No          0              1        0      390       0     390   idecel   CART         1
+#3                    P3043  79   M         4  No       No          0              1        0      180       0     180   idecel   CART         1
+#4 S102_EXP1828DNA14_CAR400  75   M         5  No       No          0              1        0       90       1      90 carvykti   CART         1
+#5 S105_EXP1828DNA17_CAR_NA  71   M         6  No       No          0              1        0       13       1      13 carvykti   CART         1
+#6 S108_EXP1828DNA20_CAR412  66   M         9  No      Yes          0              1        0      567       0     567   idecel   CART         1
+ 
+
+
 plot_km(  data = clin_all[clin_all$cohort=="CART",],group_var = "code")
 # figure 1b
 KK<-plot_km(  data = clin_all[clin_all$cohort=="TCE",],group_var = "code")
@@ -210,6 +228,42 @@ dev.off()
 #  
 all_jco<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/jco_matrix_cart_tce.txt", sep="\t")
 head(all_jco)
+#                     sample chr3.gain chr5.gain chr7.gain chr9.gain chr11.gain chr15.gain chr19.gain chr21.gain Gain_Amp1q chr18.gain Amp_17q22 Amp_2q24.3 Amp_2q32.1 Amp_4q13.2 Amp_6p24.3 Amp_8q24.21 ARID1A
+# 3  IID_H130683_T02_01_WG01         0         0         0         0          0          0          0          0          1          0         1          0          0          0          0           0      1
+# 8  IID_H201460_T03_01_WG01         0         1         0         0          0          0          0          0          1          0         0          0          0          0          0           1      0
+# 10 IID_H210134_T01_01_WG01         0         1         0         1          1          1          1          1          0          1         0          0          0          0          0           0      0
+# 20 IID_H212038_T01_01_WG01         0         1         0         1          1          1          1          1          0          0         0          0          0          0          1           0      0
+# 26 IID_H212046_T01_01_WG01         0         0         0         0          0          0          0          0          0          0         0          0          0          0          1           0      0
+# 27 IID_H212047_T01_01_WG01         0         0         0         0          0          0          0          0          2          1         1          0          0          0          0           1      0
+#    CDKN2C FAM46C FUBP1 RPL5 Del_2q31.1 Del_2q37.3 DNMT3A SP140 RASA2 SETD2 TET2 Del_6q26 PRDM1 ZNF292 Del_7p11.2 Del_7p22.2 KMT2C POT1 chr8p.loss Del_8q24.21 UBR5 Del_9p21.3 TRAF2 Del_10p15.3 Del_10q24.32
+# 3       1      1     1    1          0          0      0     0     1     0    0        1     0      0          0          0     0    1          0           0    1          0     1           0            0
+# 8       0      0     0    0          0          0      0     0     1     1    0        0     2      0          0          0     1    1          1           0    0          0     0           1            0
+# 10      0      1     0    0          0          0      0     0     0     0    0        1     1      1          0          0     1    0          1           0    0          0     0           0            0
+# 20      0      0     1    1          0          0      1     0     1     1    1        0     0      0          0          0     0    0          0           0    0          0     0           0            0
+# 26      0      0     0    0          0          0      0     0     0     0    0        0     0      0          0          1     0    0          0           0    0          1     0           0            0
+# 27      0      0     0    0          0          0      0     0     0     0    0        1     0      0          0          0     0    0          0           0    0          1     0           0            0
+#    Del_10q26.3 Del_11q22.1 ATM Del_12p13.2 Del_12q24.31 ARID2 BTG1 CDKN1B RB1 TGDS Del_14q24.3 MAX NFKBIA TRAF3 CREBBP CYLD NCOR1 NF1 TP53 KMT2B Del_20p13 Del_20q13.12 Del_22q13.32 EP300 BRAF KRAS NRAS
+# 3            0           0   1           0            0     0    0      0   0    0           1   1      0     1      2    1     0   0    0     0         0            0            0     0    0    0    0
+# 8            0           0   1           1            0     0    0      1   1    1           0   0      0     0      0    1     0   0    2     0         0            0            1     1    0    1    0
+# 10           0           0   0           0            0     0    0      0   0    0           0   0      0     0      0    1     0   0    0     0         0            0            0     0    0    0    1
+# 20           0           0   0           0            0     0    0      0   0    0           0   0      0     0      0    0     0   0    0     0         0            1            0     0    0    0    0
+# 26           0           0   0           0            0     0    0      0   1    1           0   0      0     0      0    1     0   0    0     0         0            0            0     0    0    0    0
+# 27           0           1   1           0            0     0    0      0   0    0           0   0      0     0      0    1     0   0    0     0         0            0            0     0    0    1    0
+#    CCND1 FGFR3 HIST1H1E IRF4 NFKB2 PTPN11 SF3B1 ACTG1 DUSP2 HIST1H1C HLA.C HUWE1 KLHL6 LTB PABPC1 PRKD2 SAMHD1 BCL7A EGR1 XBP1 HS_DIS3 noHS_DIS3 CCND1.IGH NSD2.IGH MAF.IGH APOBEC CNV.Sig
+# 3      0     0        0    0     0      0     0     0     0        0     0     0     0   0      0     0      0     0    0    0       0         0         0        0       0      2       1
+# 8      0     0        0    0     0      0     0     0     0        0     0     0     0   0      0     0      0     0    0    0       0         0         0        2       0      2       1
+# 10     0     0        0    0     0      0     0     0     0        0     0     0     0   0      0     0      0     0    0    0       0         0         0        0       0      1       1
+# 20     0     0        0    0     0      0     0     0     0        0     0     0     0   0      0     0      0     0    0    0       0         0         0        0       0      1       1
+# 26     0     0        0    0     0      0     0     0     0        0     0     0     0   0      0     0      0     0    0    0       0         1         2        0       0      1       1
+# 27     0     0        0    0     0      0     0     1     0        0     0     0     0   0      0     0      0     0    0    0       0         0         2        0       0      0       1
+#                 clusters.new
+# 3     MAF_and_or_HyperAPOBEC
+# 8      NSD2_GainAmp1q_Del13q
+# 10   HRD_Complex_Cytogenetic
+# 20   HRD_Complex_Cytogenetic
+# 26 CCND1_Complex_Cytogenetic
+# 27 CCND1_Complex_Cytogenetic
+
 length(unique(all_jco$sample))
 # [1] 99 --> P2336 is the patient that was treated with CART and TCE with a 10-month interval between the two treatments, and the same sample was used for both groups 
 
@@ -224,8 +278,34 @@ all_jco$complex_new[all_jco$clusters.new %in% c("CCND1_Simple","HRD_RAS","Simple
 ###########################################################################################
 
 ALL_CNV<- read.delim( "~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/ALL_CNV_FINAL.txt")
+head(ALL_CNV)
+#                     sample chr     start       end      tot       min
+# 1  IID_H130672_T03_01_WG01   1    762601 145562881 2.000000 1.0000000
+# 2  IID_H130672_T03_01_WG01   1 145572660 249201480 3.000000 1.0000000
+# 14 IID_H130672_T03_01_WG01  10     94426 135229237 2.000000 1.0000000
+# 15 IID_H130672_T03_01_WG01  11    202072 134916750 2.000000 1.0000000
+# 16 IID_H130672_T03_01_WG01  12    190980 133831319 2.000000 1.0000000
+# 17 IID_H130672_T03_01_WG01  13  19449788  33787573 1.688474 0.6884738
+
 all_dnds<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/ALL_NS_SNV_FINAL.txt")
+head(all_dnds)
+#                         sample chr       pos ref mut   gene strand ref_cod mut_cod ref3_cod mut3_cod aachange           ntchange codonsub   impact             pid
+# 570452 IID_H106944_T02_01_WG01   1  22109336  AG   A  USP48     -1       .       .        .        .        . 114-114-delfrshift        .   no-SNV ENSP00000431949
+# 2854   IID_H106944_T02_01_WG01   1  67109340   G   A  SGIP1      1       G       A      TGC      TAC    A137T              G409A  GCT>ACT Missense ENSP00000237247
+# 4466   IID_H106944_T02_01_WG01   1  97564089   T   C   DPYD     -1       A       G      TAA      TGA    K908E             A2722G  AAG>GAG Missense ENSP00000359211
+# 5196   IID_H106944_T02_01_WG01   1 109803856   G   A CELSR2      1       G       A      CGC      CAC   R1384H             G4151A  CGC>CAC Missense ENSP00000271332
+# 6387   IID_H106944_T02_01_WG01   1 156351886   C   A   RHBG      1       C       A      CCA      CAA    Q336K             C1006A  CAA>AAA Missense ENSP00000357229
+# 10129  IID_H106944_T02_01_WG01   1 226075634   C   T LEFTY1     -1       G       A      CGT      CAT    V117M              G349A  GTG>ATG Missense ENSP00000272134
+
 ALL_SV<- read.delim("~/OneDrive - Memorial Sloan Kettering Cancer Center/CART_Moffitt/2025_manuscript/nat_gen_script/ALL_SV_FINAL.txt")
+head(ALL_SV)
+#                     sample chrom1      pos1 chrom2      pos2 SVTYPE strand1 strand2
+# 1  IID_H130672_T03_01_WG01     11  69363916     14 106296684    TRA       +       -
+# 6  IID_H130672_T03_01_WG01     13  34980822     13  35000285    DEL       +       -
+# 9  IID_H130672_T03_01_WG01     14 106317344     14 106325937    INV       +       +
+# 15 IID_H130672_T03_01_WG01     14 106331452     14 106725202    DEL       +       -
+# 18 IID_H130672_T03_01_WG01      2  89161436      2  90249398    INV       -       -
+# 23 IID_H130672_T03_01_WG01      9 131400658      9 131519127    DEL       +       -
 
 all_jco$sample[!all_jco$sample%in% all_dnds$sample]
 all_jco$sample[!all_jco$sample%in% ALL_SV$sample]
