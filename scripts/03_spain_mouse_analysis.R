@@ -225,10 +225,73 @@ extract_expr <- function(seu, genes) {
 }
 
 df.bic   <- extract_expr(bic,   genes_present)
+head(df.bic)
+#                          Row.names     orig.ident nCount_RNA nFeature_RNA percent.mt disease strain subject_id            cell_id      sample_id
+#1   AAACCTGAGAAACCGC-1:MM_PBIC_8888   MM_PBIC_8888       2597         1325  1.5017328      MM   PBIC       8888 AAACCTGAGAAACCGC-1   MM_PBIC_8888
+#2     AAACCTGAGAAACGAG-1:MM_BIC2264     MM_BIC2264        866          528  0.4618938      MM    BIC       2264 AAACCTGAGAAACGAG-1     MM_BIC2264
+#3   AAACCTGAGAACAACT-1:MGUS_BIC2752   MGUS_BIC2752       6829         2438  1.9036462    MGUS    BIC       2752 AAACCTGAGAACAACT-1   MGUS_BIC2752
+#4   AAACCTGAGAAGGACA-1:MM_PBIC_8036   MM_PBIC_8036       7475         2508  1.6856187      MM   PBIC       8036 AAACCTGAGAAGGACA-1   MM_PBIC_8036
+#5 AAACCTGAGAATGTGT-1:MGUS_PBIC_8878 MGUS_PBIC_8878       1548          813  0.9689922    MGUS   PBIC       8878 AAACCTGAGAATGTGT-1 MGUS_PBIC_8878
+#6   AAACCTGAGAATGTTG-1:MGUS_BIC2751   MGUS_BIC2751       5757         2195  1.6501650    MGUS    BIC       2751 AAACCTGAGAATGTTG-1   MGUS_BIC2751
+#                              auxid cluster.ibon cell_type.ibon cell_type_det.ibon cell_type_final.ibon    Trp53 Tnfrsf17 Myc Nsd2
+#1   AAACCTGAGAAACCGC-1:MM_PBIC_8888            5     Tcells CD8      CD8_NaiveLike        CD8_NaiveLike 1.579102        0   0    0
+#2     AAACCTGAGAAACGAG-1:MM_BIC2264            3        Myeloid               <NA>              Myeloid 0.000000        0   0    0
+#3   AAACCTGAGAACAACT-1:MGUS_BIC2752            6     Tcells CD4                Tfh                  Tfh 1.368305        0   0    0
+#4   AAACCTGAGAAGGACA-1:MM_PBIC_8036            1             NK               <NA>                   NK 1.612110        0   0    0
+#5 AAACCTGAGAATGTGT-1:MGUS_PBIC_8878            8        B cells               <NA>              B cells 0.000000        0   0    0
+#6   AAACCTGAGAATGTTG-1:MGUS_BIC2751            5     Tcells CD8      CD8_NaiveLike        CD8_NaiveLike 1.826330        0   0    0
+
 df.mic   <- extract_expr(mic,   genes_present)
+head(df.mic)
+# Row.names orig.ident nCount_RNA nFeature_RNA percent.mt disease strain subject_id            cell_id sample_id
+# 1 AAACCTGAGAACTGTA-1:MGUS_MIC3  MGUS_MIC3       1868         1118   2.248394    MGUS    MIC          3 AAACCTGAGAACTGTA-1 MGUS_MIC3
+# 2 AAACCTGAGAAGGACA-1:MGUS_MIC2  MGUS_MIC2       4999         2019   1.900380    MGUS    MIC          2 AAACCTGAGAAGGACA-1 MGUS_MIC2
+# 3 AAACCTGAGAGCTTCT-1:MGUS_MIC4  MGUS_MIC4       1626          888   2.460025    MGUS    MIC          4 AAACCTGAGAGCTTCT-1 MGUS_MIC4
+# 4 AAACCTGAGAGGACGG-1:MGUS_MIC4  MGUS_MIC4       1717          983   1.339546    MGUS    MIC          4 AAACCTGAGAGGACGG-1 MGUS_MIC4
+# 5 AAACCTGAGAGGTACC-1:MGUS_MIC3  MGUS_MIC3       2420         1090   1.942149    MGUS    MIC          3 AAACCTGAGAGGTACC-1 MGUS_MIC3
+# 6 AAACCTGAGAGGTTGC-1:MGUS_MIC2  MGUS_MIC2       2490         1404   2.489960    MGUS    MIC          2 AAACCTGAGAGGTTGC-1 MGUS_MIC2
+# auxid cluster.ibon cell_type.ibon cell_type_det.ibon cell_type_final.ibon    Trp53 Tnfrsf17 Myc Nsd2
+# 1 AAACCTGAGAACTGTA-1:MGUS_MIC3            6     Tcells CD4      CD4_NaiveLike        CD4_NaiveLike 0.000000        0   0    0
+# 2 AAACCTGAGAAGGACA-1:MGUS_MIC2            1             NK               <NA>                   NK 0.000000        0   0    0
+# 3 AAACCTGAGAGCTTCT-1:MGUS_MIC4            5     Tcells CD8                Th1                  Th1 0.000000        0   0    0
+# 4 AAACCTGAGAGGACGG-1:MGUS_MIC4            1             NK               <NA>                   NK 0.000000        0   0    0
+# 5 AAACCTGAGAGGTACC-1:MGUS_MIC3            6     Tcells CD4      CD4_NaiveLike        CD4_NaiveLike 0.000000        0   0    0
+# 6 AAACCTGAGAGGTTGC-1:MGUS_MIC2            6     Tcells CD4               Treg                 Treg 1.612646        0   0    0
+
 df.other <- extract_expr(other, genes_present)
+head(df.other)
+# Row.names   orig.ident nCount_RNA nFeature_RNA percent.mt disease strain subject_id            cell_id    sample_id
+# 1 AAACCTGAGAAACCAT-1:B21C_5335_MO B21C_5335_MO       5849         1927  1.2993674    B21C   BCMO     215335 AAACCTGAGAAACCAT-1 B21C_5335_MO
+# 2 AAACCTGAGAAACCGC-1:MM_PBIC_8888 MM_PBIC_8888       2597         1325  1.5017328      MM   PBIC       8888 AAACCTGAGAAACCGC-1 MM_PBIC_8888
+# 3   AAACCTGAGAAACGAG-1:MM_BIC2264   MM_BIC2264        866          528  0.4618938      MM    BIC       2264 AAACCTGAGAAACGAG-1   MM_BIC2264
+# 4 AAACCTGAGAAAGTGG-1:B21C_5342_MO B21C_5342_MO       3347         1522  1.4938751    B21C   BCMO     215342 AAACCTGAGAAAGTGG-1 B21C_5342_MO
+# 5 AAACCTGAGAACAACT-1:MGUS_BIC2752 MGUS_BIC2752       6829         2438  1.9036462    MGUS    BIC       2752 AAACCTGAGAACAACT-1 MGUS_BIC2752
+# 6    AAACCTGAGAACTGTA-1:MGUS_MIC3    MGUS_MIC3       1868         1118  2.2483940    MGUS    MIC          3 AAACCTGAGAACTGTA-1    MGUS_MIC3
+# auxid cluster.ibon cell_type.ibon cell_type_det.ibon cell_type_final.ibon     Trp53 Tnfrsf17 Myc Nsd2
+# 1 AAACCTGAGAAACCAT-1:B21C_5335_MO            6     Tcells CD4      CD8_NaiveLike        CD8_NaiveLike 0.9968357        0   0    0
+# 2 AAACCTGAGAAACCGC-1:MM_PBIC_8888            5     Tcells CD8      CD8_NaiveLike        CD8_NaiveLike 1.5791018        0   0    0
+# 3   AAACCTGAGAAACGAG-1:MM_BIC2264            3        Myeloid               <NA>              Myeloid 0.0000000        0   0    0
+# 4 AAACCTGAGAAAGTGG-1:B21C_5342_MO            6     Tcells CD4                Th1                  Th1 0.0000000        0   0    0
+# 5 AAACCTGAGAACAACT-1:MGUS_BIC2752            6     Tcells CD4                Tfh                  Tfh 1.3683051        0   0    0
+# 6    AAACCTGAGAACTGTA-1:MGUS_MIC3            6     Tcells CD4      CD4_NaiveLike        CD4_NaiveLike 0.0000000        0   0    0
 
 all <- rbind(df.bic, df.mic, df.other)
+all <- unique(all)
+head(all)
+# Row.names     orig.ident nCount_RNA nFeature_RNA percent.mt disease strain subject_id            cell_id      sample_id
+# 1   AAACCTGAGAAACCGC-1:MM_PBIC_8888   MM_PBIC_8888       2597         1325  1.5017328      MM   PBIC       8888 AAACCTGAGAAACCGC-1   MM_PBIC_8888
+# 2     AAACCTGAGAAACGAG-1:MM_BIC2264     MM_BIC2264        866          528  0.4618938      MM    BIC       2264 AAACCTGAGAAACGAG-1     MM_BIC2264
+# 3   AAACCTGAGAACAACT-1:MGUS_BIC2752   MGUS_BIC2752       6829         2438  1.9036462    MGUS    BIC       2752 AAACCTGAGAACAACT-1   MGUS_BIC2752
+# 4   AAACCTGAGAAGGACA-1:MM_PBIC_8036   MM_PBIC_8036       7475         2508  1.6856187      MM   PBIC       8036 AAACCTGAGAAGGACA-1   MM_PBIC_8036
+# 5 AAACCTGAGAATGTGT-1:MGUS_PBIC_8878 MGUS_PBIC_8878       1548          813  0.9689922    MGUS   PBIC       8878 AAACCTGAGAATGTGT-1 MGUS_PBIC_8878
+# 6   AAACCTGAGAATGTTG-1:MGUS_BIC2751   MGUS_BIC2751       5757         2195  1.6501650    MGUS    BIC       2751 AAACCTGAGAATGTTG-1   MGUS_BIC2751
+# auxid cluster.ibon cell_type.ibon cell_type_det.ibon cell_type_final.ibon    Trp53 Tnfrsf17 Myc Nsd2
+# 1   AAACCTGAGAAACCGC-1:MM_PBIC_8888            5     Tcells CD8      CD8_NaiveLike        CD8_NaiveLike 1.579102        0   0    0
+# 2     AAACCTGAGAAACGAG-1:MM_BIC2264            3        Myeloid               <NA>              Myeloid 0.000000        0   0    0
+# 3   AAACCTGAGAACAACT-1:MGUS_BIC2752            6     Tcells CD4                Tfh                  Tfh 1.368305        0   0    0
+# 4   AAACCTGAGAAGGACA-1:MM_PBIC_8036            1             NK               <NA>                   NK 1.612110        0   0    0
+# 5 AAACCTGAGAATGTGT-1:MGUS_PBIC_8878            8        B cells               <NA>              B cells 0.000000        0   0    0
+# 6   AAACCTGAGAATGTTG-1:MGUS_BIC2751            5     Tcells CD8      CD8_NaiveLike        CD8_NaiveLike 1.826330        0   0    0
 
 write.table(all,
   ".../all_bic_pbic_mic_other_mouse_22OCT25.txt",
@@ -259,6 +322,14 @@ NEW <- as.data.frame(NEW)
 for (i in 2:ncol(NEW)) NEW[, i] <- as.numeric(as.character(NEW[, i]))
 
 new.1 <- merge(NEW, info, by = "sample")
+head(new.1)
+#          sample  Tnfrsf17     Trp53       Myc       Nsd2 disease strain
+#2   MGUS_BIC2751 0.7142857 0.5741747 0.0000000 0.00000000    MGUS    BIC
+#3   MGUS_BIC2752 0.2500000 0.6644006 0.0000000 0.05441596    MGUS    BIC
+#4      MGUS_MIC2 0.9205073 0.5936151 0.0000000 0.00000000    MGUS    MIC
+#5      MGUS_MIC3 1.8633457 0.4468818 0.0000000 0.00000000    MGUS    MIC
+#6      MGUS_MIC4 0.5748899 0.4135659 0.0000000 0.00000000    MGUS    MIC
+#7 MGUS_PBIC_8878 0.1860037 0.3756305 0.8601114 0.06516431    MGUS   PBIC
 
 # Boxplots and pairwise Wilcoxon tests per gene per strain
 boxplot(new.1$Trp53 ~ new.1$strain)
@@ -266,10 +337,10 @@ stripchart(new.1$Trp53 ~ new.1$strain,
            method = "jitter", pch = 19, cex = 0.8, col = "dodgerblue", vertical = TRUE, add = TRUE)
 pairwise_wilcox_test(new.1, Trp53 ~ strain)
 
-boxplot(new.1$Tnfrsf17.new ~ new.1$strain)
-stripchart(new.1$Tnfrsf17.new ~ new.1$strain,
+boxplot(new.1$Tnfrsf17 ~ new.1$strain)
+stripchart(new.1$Tnfrsf17 ~ new.1$strain,
            method = "jitter", pch = 19, cex = 0.8, col = "dodgerblue", vertical = TRUE, add = TRUE)
-pairwise_wilcox_test(new.1, Tnfrsf17.new ~ strain)
+pairwise_wilcox_test(new.1, Tnfrsf17 ~ strain)
 
 
 # =============================================================================
