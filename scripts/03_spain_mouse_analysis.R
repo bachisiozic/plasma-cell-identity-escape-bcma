@@ -150,6 +150,14 @@ table(all_merge$orig.ident)
 ibon_md        <- read.csv("../mouse/spain_mouse/20250328_All_annotated.csv"); dim(ibon_md)
 ibon_md$auxid  <- paste0(ibon_md$Barcode, ":", ibon_md$Sample)
 rownames(ibon_md) <- ibon_md$auxid
+head(ibon_md)
+#                                         CellNames       Sample            Barcode Cluster   CellType                           auxid
+#AAACCTGAGAGGACGG-1:MGUS_BIC2573 cell1_MGUS_BIC2573 MGUS_BIC2573 AAACCTGAGAGGACGG-1       1         NK AAACCTGAGAGGACGG-1:MGUS_BIC2573
+#AAACCTGAGCTAACAA-1:MGUS_BIC2573 cell2_MGUS_BIC2573 MGUS_BIC2573 AAACCTGAGCTAACAA-1       1         NK AAACCTGAGCTAACAA-1:MGUS_BIC2573
+#AAACCTGAGCTCCTCT-1:MGUS_BIC2573 cell3_MGUS_BIC2573 MGUS_BIC2573 AAACCTGAGCTCCTCT-1       5 Tcells CD8 AAACCTGAGCTCCTCT-1:MGUS_BIC2573
+#AAACCTGAGGTGATAT-1:MGUS_BIC2573 cell5_MGUS_BIC2573 MGUS_BIC2573 AAACCTGAGGTGATAT-1       6 Tcells CD4 AAACCTGAGGTGATAT-1:MGUS_BIC2573
+#AAACCTGCAAGGACTG-1:MGUS_BIC2573 cell6_MGUS_BIC2573 MGUS_BIC2573 AAACCTGCAAGGACTG-1       1         NK AAACCTGCAAGGACTG-1:MGUS_BIC2573
+#AAACCTGCACCTTGTC-1:MGUS_BIC2573 cell8_MGUS_BIC2573 MGUS_BIC2573 AAACCTGCACCTTGTC-1       1         NK AAACCTGCACCTTGTC-1:MGUS_BIC2573
 ibon_md <- subset(ibon_md, grepl(paste(unique(all_merge@meta.data$sample_id), collapse="|"), Sample))
 
 all_merge_sub <- subset(all_merge, auxid %in% ibon_md$auxid)
@@ -161,6 +169,14 @@ all_merge_sub <- AddMetaData(all_merge_sub,
 ibon_md        <- read.csv("../mouse/spain_mouse/20250319_Tcells_cells_ATLAS_annotated.csv"); dim(ibon_md)
 ibon_md$auxid  <- paste0(ibon_md$Barcode, ":", ibon_md$Sample)
 rownames(ibon_md) <- ibon_md$auxid
+head(ibon_md)
+#                                           CellNames       Sample            Barcode           Celltype                           auxid
+# AAACCTGAGCTCCTCT-1:MGUS_BIC2573  cell3_MGUS_BIC2573 MGUS_BIC2573 AAACCTGAGCTCCTCT-1 CD8_EffectorMemory AAACCTGAGCTCCTCT-1:MGUS_BIC2573
+# AAACCTGAGGTGATAT-1:MGUS_BIC2573  cell5_MGUS_BIC2573 MGUS_BIC2573 AAACCTGAGGTGATAT-1      CD8_NaiveLike AAACCTGAGGTGATAT-1:MGUS_BIC2573
+# AAACCTGGTATAGTAG-1:MGUS_BIC2573 cell11_MGUS_BIC2573 MGUS_BIC2573 AAACCTGGTATAGTAG-1                Th1 AAACCTGGTATAGTAG-1:MGUS_BIC2573
+# AAACCTGGTCGAATCT-1:MGUS_BIC2573 cell12_MGUS_BIC2573 MGUS_BIC2573 AAACCTGGTCGAATCT-1                Th1 AAACCTGGTCGAATCT-1:MGUS_BIC2573
+# AAACCTGGTGATAAGT-1:MGUS_BIC2573 cell14_MGUS_BIC2573 MGUS_BIC2573 AAACCTGGTGATAAGT-1                Th1 AAACCTGGTGATAAGT-1:MGUS_BIC2573
+# AAACGGGAGAGCTGCA-1:MGUS_BIC2573 cell18_MGUS_BIC2573 MGUS_BIC2573 AAACGGGAGAGCTGCA-1      CD8_NaiveLike AAACGGGAGAGCTGCA-1:MGUS_BIC2573
 ibon_md <- subset(ibon_md, grepl(paste(unique(all_merge@meta.data$sample_id), collapse="|"), Sample))
 
 all_merge_sub <- AddMetaData(all_merge_sub,
