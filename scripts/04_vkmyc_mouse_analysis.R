@@ -54,6 +54,13 @@ dim(rna2)
 expr <- rna2[, c(2, 5:18)]
 expr <- expr[complete.cases(expr$SYMBOL), ]
 
+expr[1:5,1:5]
+#  SYMBOL Vk12598.median Vk12653.median Vk29790.median Vk32908.median
+#2  Gnai3      44.123300     51.4790500     19.4311000       16.45800
+#3   Pbsn       0.000000      0.0000000      0.0000000        0.00000
+#4  Cdc45      31.909900     32.4237000     18.0968000       58.03140
+#5  Scml2       0.493071      0.2346015      0.0285285        0.58206
+#6   Apoh       0.000000      0.0000000      3.1091400        0.00000
 
 # =============================================================================
 # PART 2 — Pseudobulk differential expression: non-responders vs responders
