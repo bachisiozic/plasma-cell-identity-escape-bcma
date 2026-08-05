@@ -21,12 +21,24 @@ moffitt.exp=moffitt.exp[rownames(moffitt.exp) %in% GENES,]
 moffitt.exp.t=t(moffitt.exp)
 
 ### . . - Excluding pt 11 because died in 30 days after infusion
+moffitt.df=tumor2[[10]]
+moffitt.df.1=moffitt.df[,c("sample","time_point","D90_MRD","D270_response","sBCMA")]
+moffitt.df.1=unique(moffitt.df.1)
+moffitt.df.2=moffitt.df.1[moffitt.df.1$sample != "11aCD138",]
+
 moffitt.deg=merge(moffitt.df.2,moffitt.exp.t,by.x="sample",by.y="row.names",all.x=T)
 
 #### . . . - Creating the dataframe for Dhodapkar with selected genes
 all.exp=all.2$pseudobulk_sum
 all.exp=all.exp[rownames(all.exp) %in% GENES,]
 all.exp.t=t(all.exp)
+
+all.df=all.2[[10]]
+all.df$D270_response=ifelse(all.df$IL18_PFS.group.2 == ">180days","DR","NDR")
+all.df$sample=all.df$orig.ident
+all.df.1=all.df[,c("sample","time.point","D270_response")]
+colnames(all.df.1)[2]="time_point"
+
 all.deg=merge(all.df.1,all.exp.t,by.x="sample",by.y="row.names",all.x=T)
 
 #### . . . - Creating one big dataframe integrating both cohorts
@@ -44,13 +56,37 @@ expr=t(expr)
 pdata=df.deg.bas[,1:5]
 rownames(pdata)=pdata$sample
 pdata=pdata[,-1]
+head(pdata)
+#        time_point D90_MRD D270_response sBCMA
+#12aCD138      PreTx     Pos           NDR  high
+#13aCD138      PreTx     Pos            DR   low
+#14aCD138      PreTx      NA            DR  high
+#15aCD138      PreTx     Pos            DR   low
+#2aCD138       PreTx     Neg            DR  high
+#3aCD138       PreTx     Neg            DR   low
 
 info=read.delim(".../PFS_different_timepoints_Moffitt_Dhodapkar.txt",
                 stringsAsFactors = F)
 info=info[,-2]
+head(info)
+#    sample D30_response D60_response D90_response D120_response D150_response D180_response D360_response dataset
+#1 12aCD138          NDR          NDR          NDR           NDR           NDR           NDR           NDR Moffitt
+#2 13aCD138           DR           DR           DR            DR            DR            DR            DR Moffitt
+#3 14aCD138           DR           DR           DR            DR            DR            DR            DR Moffitt
+#4 15aCD138           DR           DR           DR            DR            DR            DR            DR Moffitt
+#5  2aCD138           DR           DR           DR            DR            DR            DR            DR Moffitt
+#6  3aCD138           DR           DR           DR            DR            DR            DR            DR Moffitt
 
 pdata.1=merge(pdata,info,by.x="row.names",by.y="sample",all.x=T)
 rownames(pdata.1)=pdata.1$Row.names
+head(pdata.1)
+#         Row.names time_point D90_MRD D270_response sBCMA D30_response D60_response D90_response D120_response D150_response D180_response D360_response dataset
+#12aCD138  12aCD138      PreTx     Pos           NDR  high          NDR          NDR          NDR           NDR           NDR           NDR           NDR Moffitt
+#13aCD138  13aCD138      PreTx     Pos            DR   low           DR           DR           DR            DR            DR            DR            DR Moffitt
+#14aCD138  14aCD138      PreTx      NA            DR  high           DR           DR           DR            DR            DR            DR            DR Moffitt
+#15aCD138  15aCD138      PreTx     Pos            DR   low           DR           DR           DR            DR            DR            DR            DR Moffitt
+#2aCD138    2aCD138      PreTx     Neg            DR  high           DR           DR           DR            DR            DR            DR            DR Moffitt
+#3aCD138    3aCD138      PreTx     Neg            DR   low           DR           DR           DR            DR            DR            DR            DR Moffitt
 
 #### . . . - DEG analysis
 NEW=NULL
@@ -174,6 +210,15 @@ pheatmap(nes_mat,
 NEW.1$n.NDR.patients=ifelse(NEW.1$PFS %in% c("D60_response","D90_response"),5,
                    ifelse(NEW.1$PFS %in% c("D120_response","D150_response","D180_response","D270_response"),6,
                           ifelse(NEW.1$PFS %in% c("D360_response"),7,0)))
+head(NEW.1)
+#                             pathway       NES         FDR          PFS n.NDR.patients
+#1   HALLMARK_ESTROGEN_RESPONSE_EARLY  1.807456 0.001542769 D60_response              5
+#2    HALLMARK_ESTROGEN_RESPONSE_LATE  1.761788 0.001542769 D60_response              5
+#3 HALLMARK_INTERFERON_ALPHA_RESPONSE -2.043751 0.001542769 D60_response              5
+#4 HALLMARK_INTERFERON_GAMMA_RESPONSE -1.868308 0.001542769 D60_response              5
+#5 HALLMARK_UNFOLDED_PROTEIN_RESPONSE  1.746608 0.001542769 D60_response              5
+#6          HALLMARK_MTORC1_SIGNALING  1.870918 0.001542769 D60_response              5
+
 
 write.table(NEW.1,
             ".../GSEA_different_PFS_cutoff.txt",
