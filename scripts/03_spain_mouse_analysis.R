@@ -360,7 +360,7 @@ NEW <- as.data.frame(NEW)
 for (i in 2:ncol(NEW)) NEW[, i] <- as.numeric(as.character(NEW[, i]))
 
 new.1 <- merge(NEW, info, by = "sample")
-
+new.1=new.1[!new.1.1$sample %in% c("MM_MIC7"),]
 # Boxplots and pairwise Wilcoxon tests per gene per strain
 boxplot(new.1$Tnfrsf17 ~ new.1$strain)
 stripchart(new.1$Tnfrsf17 ~ new.1$strain,
@@ -541,7 +541,7 @@ de_plasma_mic <- FindMarkers(
 de_plasma_mic[rownames(de_plasma_mic) == "Tnfrsf17", ]
 
 # --- Pseudobulk collapse and DESeq2 -----------------------------------------
-merged.coll    <- collapse_by_sample(merged, group.by = "sample_id", adjust = "percell_mean")
+merged.coll    <- collapse_by_sample(merged1, group.by = "sample_id", adjust = "percell_mean")
 merged.coll.md <- as.data.frame(merged@meta.data)
 merged.coll    <- append(merged.coll, list(merged.coll.md))
 
