@@ -542,7 +542,7 @@ de_plasma_mic[rownames(de_plasma_mic) == "Tnfrsf17", ]
 
 # --- Pseudobulk collapse and DESeq2 -----------------------------------------
 merged.coll    <- collapse_by_sample(merged1, group.by = "sample_id", adjust = "percell_mean")
-merged.coll.md <- as.data.frame(merged@meta.data)
+merged.coll.md <- as.data.frame(merged1@meta.data)
 merged.coll    <- append(merged.coll, list(merged.coll.md))
 
 pb.exp.mic    <- merged.coll$pseudobulk_sum
