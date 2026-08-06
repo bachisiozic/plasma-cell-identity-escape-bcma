@@ -302,7 +302,58 @@ all   <- read.delim(".../all_bic_pbic_mic_other_mouse_22OCT25.txt", stringsAsFac
 all.1 <- all[!all$strain %in% c("BCMO",""), ]
 table(all.1$strain)
 
-# Focus on malignant plasma cells (B cells_PC)
+#### . . . Looking the Trp53 expression 
+all.plasma=all.1
+table(all.plasma$orig.ident)
+expr_T1 <- all.plasma[,c(2,16:19)]
+info=unique(all.plasma[,c(2,6,7)])
+colnames(info)[1]="sample"
+NEW=NULL
+for(i in 1:length(unique(expr_T1$orig.ident))){
+  SAMPLE=unique(expr_T1$orig.ident)[i]
+  SUB=expr_T1[expr_T1$orig.ident == SAMPLE,]
+  new=colMeans(SUB[,2:5])
+  NEW=rbind(NEW,c(SAMPLE,new))
+}
+colnames(NEW)[1]="sample"
+NEW=as.data.frame(NEW)
+for(i in 2:ncol(NEW)){
+  NEW[,i]=as.numeric(as.character(NEW[,i]))
+}
+
+new.1=merge(NEW,info,by="sample")
+new.1[,c(1,2,6,7)]
+#            sample      Trp53 disease strain
+# 1    MGUS_BIC2573 0.28628213    MGUS    BIC
+# 2    MGUS_BIC2751 0.05697784    MGUS    BIC
+# 3    MGUS_BIC2752 0.09629539    MGUS    BIC
+# 4       MGUS_MIC2 0.00000000    MGUS    MIC
+# 5       MGUS_MIC3 0.00000000    MGUS    MIC
+# 6       MGUS_MIC4 0.00000000    MGUS    MIC
+# 7  MGUS_PBIC_8878 0.18626661    MGUS   PBIC
+# 8  MGUS_PBIC_8892 0.12148772    MGUS   PBIC
+# 9  MGUS_PBIC_8893 0.17659206    MGUS   PBIC
+# 10     MM_BIC1728 0.15209987      MM    BIC
+# 11     MM_BIC2264 0.17447161      MM    BIC
+# 12     MM_BIC6917 0.21913729      MM    BIC
+# 13       MM_MIC21 0.23798235      MM    MIC
+# 14        MM_MIC7 0.00000000      MM    MIC
+# 15   MM_PBIC_8036 0.48065407      MM   PBIC
+# 16   MM_PBIC_8780 0.31542376      MM   PBIC
+# 17   MM_PBIC_8888 0.26764066      MM   PBIC
+
+# Boxplots and pairwise Wilcoxon tests per gene per strain
+boxplot(new.1$Trp53 ~ new.1$strain)
+stripchart(new.1$Trp53 ~ new.1$strain,
+           method = "jitter",
+           pch = 19,
+           cex=0.8,
+           col = "dodgerblue",
+           vertical = TRUE,
+           add = TRUE)
+pairwise_wilcox_test(new.1,Trp53~strain)
+
+##### . . . Looking the Tnfrsf17 expression, focusing on malignant plasma cells (B cells_PC)
 all.plasma <- all.1[all.1$cell_type_final.ibon %in% c("B cells_PC"), ]
 table(all.plasma$orig.ident)
 
@@ -322,30 +373,26 @@ NEW <- as.data.frame(NEW)
 for (i in 2:ncol(NEW)) NEW[, i] <- as.numeric(as.character(NEW[, i]))
 
 new.1 <- merge(NEW, info, by = "sample")
-new.1
-#           sample   Tnfrsf17     Trp53        Myc       Nsd2 disease strain
-#2    MGUS_BIC2751 0.71428571 0.5741747 0.00000000 0.00000000    MGUS    BIC
-#3    MGUS_BIC2752 0.25000000 0.6644006 0.00000000 0.05441596    MGUS    BIC
-#4       MGUS_MIC2 0.92050729 0.5936151 0.00000000 0.00000000    MGUS    MIC
-#5       MGUS_MIC3 1.86334574 0.4468818 0.00000000 0.00000000    MGUS    MIC
-#6       MGUS_MIC4 0.57488986 0.4135659 0.00000000 0.00000000    MGUS    MIC
-#7  MGUS_PBIC_8878 0.18600368 0.3756305 0.86011139 0.06516431    MGUS   PBIC
-#8  MGUS_PBIC_8892 0.08872727 0.3216784 0.07370787 0.07852074    MGUS   PBIC
-#9  MGUS_PBIC_8893 0.08811189 0.2462609 0.53741006 0.11820588    MGUS   PBIC
-#10     MM_BIC1728 0.68181818 0.4370387 0.07739200 0.00000000      MM    BIC
-#11     MM_BIC2264 0.67567568 0.6120641 0.53031225 0.06473515      MM    BIC
-#12     MM_BIC6917 0.31818182 0.5130261 0.22911612 0.05339682      MM    BIC
-#13       MM_MIC21 0.46350737 0.5225473 0.45922931 0.00000000      MM    MIC
-#15   MM_PBIC_8036 0.03536977 0.4948160 1.44756770 0.09022771      MM   PBIC
-#16   MM_PBIC_8780 0.32935561 0.3965683 1.67029751 0.10768773      MM   PBIC
-#17   MM_PBIC_8888 0.18923933 0.4055711 1.03233614 0.03893978      MM   PBIC
+new.1[,c(1,2,6,7)]
+
+#            sample   Tnfrsf17 disease strain
+# 2    MGUS_BIC2751 0.71428571    MGUS    BIC
+# 3    MGUS_BIC2752 0.25000000    MGUS    BIC
+# 4       MGUS_MIC2 0.92050729    MGUS    MIC
+# 5       MGUS_MIC3 1.86334574    MGUS    MIC
+# 6       MGUS_MIC4 0.57488986    MGUS    MIC
+# 7  MGUS_PBIC_8878 0.18600368    MGUS   PBIC
+# 8  MGUS_PBIC_8892 0.08872727    MGUS   PBIC
+# 9  MGUS_PBIC_8893 0.08811189    MGUS   PBIC
+# 10     MM_BIC1728 0.68181818      MM    BIC
+# 11     MM_BIC2264 0.67567568      MM    BIC
+# 12     MM_BIC6917 0.31818182      MM    BIC
+# 13       MM_MIC21 0.46350737      MM    MIC
+# 15   MM_PBIC_8036 0.03536977      MM   PBIC
+# 16   MM_PBIC_8780 0.32935561      MM   PBIC
+# 17   MM_PBIC_8888 0.18923933      MM   PBIC
 
 # Boxplots and pairwise Wilcoxon tests per gene per strain
-boxplot(new.1$Trp53 ~ new.1$strain)
-stripchart(new.1$Trp53 ~ new.1$strain,
-           method = "jitter", pch = 19, cex = 0.8, col = "dodgerblue", vertical = TRUE, add = TRUE)
-pairwise_wilcox_test(new.1, Trp53 ~ strain)
-
 boxplot(new.1$Tnfrsf17 ~ new.1$strain)
 stripchart(new.1$Tnfrsf17 ~ new.1$strain,
            method = "jitter", pch = 19, cex = 0.8, col = "dodgerblue", vertical = TRUE, add = TRUE)
