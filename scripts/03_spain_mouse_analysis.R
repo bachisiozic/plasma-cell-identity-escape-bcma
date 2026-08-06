@@ -322,25 +322,6 @@ for(i in 2:ncol(NEW)){
 }
 
 new.1=merge(NEW,info,by="sample")
-new.1[,c(1,2,6,7)]
-#            sample      Trp53 disease strain
-# 1    MGUS_BIC2573 0.28628213    MGUS    BIC
-# 2    MGUS_BIC2751 0.05697784    MGUS    BIC
-# 3    MGUS_BIC2752 0.09629539    MGUS    BIC
-# 4       MGUS_MIC2 0.00000000    MGUS    MIC
-# 5       MGUS_MIC3 0.00000000    MGUS    MIC
-# 6       MGUS_MIC4 0.00000000    MGUS    MIC
-# 7  MGUS_PBIC_8878 0.18626661    MGUS   PBIC
-# 8  MGUS_PBIC_8892 0.12148772    MGUS   PBIC
-# 9  MGUS_PBIC_8893 0.17659206    MGUS   PBIC
-# 10     MM_BIC1728 0.15209987      MM    BIC
-# 11     MM_BIC2264 0.17447161      MM    BIC
-# 12     MM_BIC6917 0.21913729      MM    BIC
-# 13       MM_MIC21 0.23798235      MM    MIC
-# 14        MM_MIC7 0.00000000      MM    MIC
-# 15   MM_PBIC_8036 0.48065407      MM   PBIC
-# 16   MM_PBIC_8780 0.31542376      MM   PBIC
-# 17   MM_PBIC_8888 0.26764066      MM   PBIC
 
 # Boxplots and pairwise Wilcoxon tests per gene per strain
 boxplot(new.1$Trp53 ~ new.1$strain)
@@ -379,25 +360,6 @@ NEW <- as.data.frame(NEW)
 for (i in 2:ncol(NEW)) NEW[, i] <- as.numeric(as.character(NEW[, i]))
 
 new.1 <- merge(NEW, info, by = "sample")
-new.1=new.1[!new.1$sample %in% c("MM_MIC7","MGUS_BIC2573"),] # Low B plasma cell number
-new.1[,c(1,2,6,7)]
-
-#            sample   Tnfrsf17 disease strain
-# 2    MGUS_BIC2751 0.71428571    MGUS    BIC
-# 3    MGUS_BIC2752 0.25000000    MGUS    BIC
-# 4       MGUS_MIC2 0.92050729    MGUS    MIC
-# 5       MGUS_MIC3 1.86334574    MGUS    MIC
-# 6       MGUS_MIC4 0.57488986    MGUS    MIC
-# 7  MGUS_PBIC_8878 0.18600368    MGUS   PBIC
-# 8  MGUS_PBIC_8892 0.08872727    MGUS   PBIC
-# 9  MGUS_PBIC_8893 0.08811189    MGUS   PBIC
-# 10     MM_BIC1728 0.68181818      MM    BIC
-# 11     MM_BIC2264 0.67567568      MM    BIC
-# 12     MM_BIC6917 0.31818182      MM    BIC
-# 13       MM_MIC21 0.46350737      MM    MIC
-# 15   MM_PBIC_8036 0.03536977      MM   PBIC
-# 16   MM_PBIC_8780 0.32935561      MM   PBIC
-# 17   MM_PBIC_8888 0.18923933      MM   PBIC
 
 # Boxplots and pairwise Wilcoxon tests per gene per strain
 boxplot(new.1$Tnfrsf17 ~ new.1$strain)
