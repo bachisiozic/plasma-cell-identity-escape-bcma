@@ -352,6 +352,12 @@ stripchart(new.1$Trp53 ~ new.1$strain,
            vertical = TRUE,
            add = TRUE)
 pairwise_wilcox_test(new.1,Trp53~strain)
+# # A tibble: 3 × 9
+#   .y.   group1 group2    n1    n2 statistic     p p.adj p.adj.signif
+# * <chr> <chr>  <chr>  <int> <int>     <dbl> <dbl> <dbl> <chr>       
+# 1 Trp53 BIC    MIC        6     5        21 0.329 0.329 ns          
+# 2 Trp53 BIC    PBIC       6     6        35 0.004 0.013 *           
+# 3 Trp53 MIC    PBIC       5     6        28 0.017 0.035 * 
 
 ##### . . . Looking the Tnfrsf17 expression, focusing on malignant plasma cells (B cells_PC)
 all.plasma <- all.1[all.1$cell_type_final.ibon %in% c("B cells_PC"), ]
@@ -373,6 +379,7 @@ NEW <- as.data.frame(NEW)
 for (i in 2:ncol(NEW)) NEW[, i] <- as.numeric(as.character(NEW[, i]))
 
 new.1 <- merge(NEW, info, by = "sample")
+new.1=new.1[!new.1$sample %in% c("MM_MIC7","MGUS_BIC2573"),] # Low B plasma cell number
 new.1[,c(1,2,6,7)]
 
 #            sample   Tnfrsf17 disease strain
@@ -397,7 +404,12 @@ boxplot(new.1$Tnfrsf17 ~ new.1$strain)
 stripchart(new.1$Tnfrsf17 ~ new.1$strain,
            method = "jitter", pch = 19, cex = 0.8, col = "dodgerblue", vertical = TRUE, add = TRUE)
 pairwise_wilcox_test(new.1, Tnfrsf17 ~ strain)
-
+# # A tibble: 3 × 9
+#   .y.          group1 group2    n1    n2 statistic     p p.adj p.adj.signif
+# * <chr>        <chr>  <chr>  <int> <int>     <dbl> <dbl> <dbl> <chr>       
+# 1 Tnfrsf17.new BIC    MIC        5     4         6 0.413 0.413 ns          
+# 2 Tnfrsf17.new BIC    PBIC       5     6        28 0.017 0.035 *           
+# 3 Tnfrsf17.new MIC    PBIC       4     6        24 0.01  0.029 *  
 
 # =============================================================================
 # PART 3 — GSEA on pseudobulk DEGs: PBIC vs BIC
