@@ -97,3 +97,6 @@ BiocManager::install(c("DESeq2","edgeR","fgsea","msigdbr","ComplexHeatmap",
 - WGS: `EGAS50000001817` and `EGAS50000000546`
 
 ---
+
+DOI: 10.5281/zenodo.22878250
+
